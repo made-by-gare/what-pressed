@@ -15,13 +15,13 @@ Users create **atlases** (input-to-image mappings with pressed/unpressed states)
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | [Tauri 2](https://v2.tauri.app/) |
-| Frontend | React 19, TypeScript, Vite |
+| Layer         | Technology                             |
+| ------------- | -------------------------------------- |
+| Framework     | [Tauri 2](https://v2.tauri.app/)       |
+| Frontend      | React 19, TypeScript, Vite             |
 | Input capture | rdev (keyboard/mouse), gilrs (gamepad) |
-| Web server | axum (HTTP + WebSocket) |
-| Data | JSON + images on disk, ZIP for sharing |
+| Web server    | axum (HTTP + WebSocket)                |
+| Data          | JSON + images on disk, ZIP for sharing |
 
 ## Getting Started
 
@@ -120,9 +120,10 @@ npm run bump 0.2.0
 Then commit, tag, and push:
 
 ```bash
-git add -A && git commit -m "bump version to 0.2.0"
+git add -A
+git commit -m "bump version to 0.2.0"
 git tag v0.2.0
-git push --follow-tags
+git push origin main --tags
 ```
 
 The GitHub Actions workflow will build the app and create a release with the installer. The app checks for updates on startup via the Tauri updater plugin.

@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
+import { execSync } from "child_process";
 
 const version = process.argv[2];
 if (!version) {
@@ -28,8 +29,13 @@ writeFileSync(
 );
 console.log(`tauri.conf.json -> ${version}`);
 
+// Update Cargo.lock
+execSync("cargo update --workspace", { cwd: "src-tauri", stdio: "inherit" });
+console.log(`Cargo.lock updated`);
+
 console.log(`\nVersion bumped to ${version}`);
 console.log(`Next steps:`);
-console.log(`  git add -A && git commit -m "bump version to ${version}"`);
+console.log(`  git add -A`);
+console.log(`  git commit -m "bump version to ${version}"`);
 console.log(`  git tag v${version}`);
-console.log(`  git push --follow-tags`);
+console.log(`  git push origin main --tags`);
