@@ -34,15 +34,51 @@ jobs:
         run: npm ci
 
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0.5
+        run: npx tauri build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: List bundle output
+        run: |
+          Get-ChildItem -Recurse src-tauri/target/release/bundle/ | ForEach-Object { $_.FullName }
+
+      - name: Generate latest.json for updater
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          $repo = "${{ github.repository }}"
+          $nsisZip = Get-ChildItem src-tauri/target/release/bundle/nsis/*.nsis.zip | Select-Object -First 1
+          $nsisZipSig = Get-Content "$($nsisZip.FullName).sig" -Raw
+          $nsisZipName = $nsisZip.Name
+          $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+          $json = @{
+            version = $version
+            notes = "See the assets on the release page."
+            pub_date = $date
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $nsisZipSig.Trim()
+                url = "https://github.com/$repo/releases/download/v$version/$nsisZipName"
+              }
+            }
+          } | ConvertTo-Json -Depth 4
+          $json | Out-File -FilePath latest.json -Encoding utf8
+          Write-Output "Generated latest.json"
+          Get-Content latest.json
+
+      - name: Create release and upload artifacts
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "What Pressed ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install."
-          releaseDraft: false
-          prerelease: false
-          productName: WhatPressed
+          name: "What Pressed ${{ github.ref_name }}"
+          body: "See the assets below to download and install."
+          files: |
+            latest.json
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/msi/*.msi.sig
+            src-tauri/target/release/bundle/msi/*.msi.zip
+            src-tauri/target/release/bundle/msi/*.msi.zip.sig
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+            src-tauri/target/release/bundle/nsis/*.nsis.zip
+            src-tauri/target/release/bundle/nsis/*.nsis.zip.sig
