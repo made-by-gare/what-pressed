@@ -1,0 +1,170 @@
+// OBS Browser Source Display
+// Connects to the What Pressed web server via WebSocket
+
+(function () {
+  const container = document.getElementById("display-container");
+  const baseUrl = window.location.origin;
+  const wsUrl = `ws://${window.location.host}/ws/input`;
+
+  let layout = null;
+  let atlas = null;
+  let elements = new Map(); // entry.id -> { el, imgPressed, imgUnpressed }
+
+  async function fetchLayout() {
+    try {
+      const res = await fetch(`${baseUrl}/api/active-layout`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchAtlas(name) {
+    try {
+      const res = await fetch(`${baseUrl}/api/atlas/${name}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  function inputIdToString(id) {
+    return `${id.type}:${id.value}`;
+  }
+
+  function buildDisplay() {
+    container.innerHTML = "";
+    elements.clear();
+
+    if (!layout || !atlas) return;
+
+    container.style.width = layout.canvas_width + "px";
+    container.style.height = layout.canvas_height + "px";
+
+    const sorted = [...layout.entries].sort((a, b) => a.z_index - b.z_index);
+
+    for (const entry of sorted) {
+      const atlasEntry = atlas.entries.find(
+        (ae) => ae.id === entry.atlas_entry_id,
+      );
+      if (!atlasEntry) continue;
+
+      const el = document.createElement("div");
+      el.className = "display-entry";
+
+      const w = atlasEntry.width * entry.scale;
+      const h = atlasEntry.height * entry.scale;
+
+      el.style.left = entry.x - w / 2 + "px";
+      el.style.top = entry.y - h / 2 + "px";
+      el.style.width = w + "px";
+      el.style.height = h + "px";
+      el.style.transform = `rotate(${entry.rotation}deg)`;
+      el.style.zIndex = entry.z_index;
+
+      const imgUnpressed = new Image();
+      if (atlasEntry.unpressed_image) {
+        imgUnpressed.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${atlasEntry.unpressed_image}`;
+      }
+
+      const imgPressed = new Image();
+      if (atlasEntry.pressed_image) {
+        imgPressed.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${atlasEntry.pressed_image}`;
+        imgPressed.style.display = "none";
+      }
+
+      el.appendChild(imgUnpressed);
+      el.appendChild(imgPressed);
+      container.appendChild(el);
+
+      elements.set(entry.id, {
+        el,
+        atlasEntry,
+        imgPressed,
+        imgUnpressed,
+      });
+    }
+  }
+
+  function updateDisplay(inputState) {
+    const pressedSet = new Set(
+      (inputState.pressed || []).map((id) => inputIdToString(id)),
+    );
+
+    for (const [, data] of elements) {
+      const isPressed = pressedSet.has(
+        inputIdToString(data.atlasEntry.input_id),
+      );
+      data.imgUnpressed.style.display = isPressed ? "none" : "";
+      data.imgPressed.style.display = isPressed ? "" : "none";
+    }
+  }
+
+  function connectWebSocket() {
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.reload) {
+          console.log("Layout changed, reloading...");
+          reload();
+          return;
+        }
+        updateDisplay(data);
+      } catch (e) {
+        console.error("Failed to parse message:", e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket disconnected, reconnecting in 2s...");
+      setTimeout(connectWebSocket, 2000);
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
+  }
+
+  async function reload() {
+    const newLayout = await fetchLayout();
+    if (!newLayout) return;
+    layout = newLayout;
+    atlas = await fetchAtlas(layout.atlas_name);
+    buildDisplay();
+  }
+
+  async function init() {
+    layout = await fetchLayout();
+    if (!layout) {
+      console.log("No active layout, retrying in 2s...");
+      setTimeout(init, 2000);
+      return;
+    }
+
+    atlas = await fetchAtlas(layout.atlas_name);
+    if (!atlas) {
+      console.log("Failed to fetch atlas, retrying in 2s...");
+      setTimeout(init, 2000);
+      return;
+    }
+
+    buildDisplay();
+    connectWebSocket();
+  }
+
+  // In a regular browser, transparent background renders as white,
+  // making white key images invisible. Add a dark backdrop when not in OBS.
+  if (!window.obsstudio) {
+    document.body.style.background = "#1e1e1e";
+  }
+
+  init();
+})();

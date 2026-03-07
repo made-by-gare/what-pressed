@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri_conf_schema.json",
+  "productName": "What Pressed",
+  "identifier": "com.madebygare.what-pressed",
+  "version": "0.1.0",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "What Pressed",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "createUpdaterArtifacts": "v1Compatible"
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/made-by-gare/what-pressed/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDExMUM5NjgxMzEwMTBFOTgKUldTWURnRXhnWlljRVZhNDhTSWpSakN1eGNKWmgvSEVIcWY3WjN5ZUdZSXgwVlNXQVN2Tk82Z0IK"
+    }
+  }
+}

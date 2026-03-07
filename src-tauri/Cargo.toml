@@ -1,0 +1,31 @@
+[package]
+name = "what-pressed"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "what_pressed_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+rdev = "0.5"
+gilrs = "0.11"
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["cors"] }
+include_dir = "0.7"
+mime_guess = "2"
+zip = "2"
+uuid = { version = "1", features = ["v4"] }
+futures-util = "0.3"
+image = "0.25"
+ab_glyph = "0.2"
+tauri-plugin-updater = "2.10.0"
