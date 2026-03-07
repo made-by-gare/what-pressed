@@ -3,8 +3,16 @@
 
 (function () {
   const container = document.getElementById("display-container");
+  const banner = document.getElementById("status-banner");
   const baseUrl = window.location.origin;
   const wsUrl = `ws://${window.location.host}/ws/input`;
+  const isObs = !!window.obsstudio;
+
+  function setStatus(state, message) {
+    if (isObs) return;
+    banner.className = state;
+    banner.textContent = message;
+  }
 
   let layout = null;
   let atlas = null;
@@ -107,6 +115,7 @@
 
     ws.onopen = () => {
       console.log("WebSocket connected");
+      setStatus("", "");
     };
 
     ws.onmessage = (event) => {
@@ -125,6 +134,7 @@
 
     ws.onclose = () => {
       console.log("WebSocket disconnected, reconnecting in 2s...");
+      setStatus("disconnected", "What Pressed is not running — waiting for reconnect...");
       setTimeout(connectWebSocket, 2000);
     };
 
@@ -145,6 +155,7 @@
     layout = await fetchLayout();
     if (!layout) {
       console.log("No active layout, retrying in 2s...");
+      setStatus("waiting", "Waiting for an active layout — select one in What Pressed");
       setTimeout(init, 2000);
       return;
     }
@@ -152,10 +163,12 @@
     atlas = await fetchAtlas(layout.atlas_name);
     if (!atlas) {
       console.log("Failed to fetch atlas, retrying in 2s...");
+      setStatus("waiting", "Waiting for atlas data...");
       setTimeout(init, 2000);
       return;
     }
 
+    setStatus("", "");
     buildDisplay();
     connectWebSocket();
   }

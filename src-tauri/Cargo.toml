@@ -1,6 +1,6 @@
 [package]
 name = "what-pressed"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 
 [lib]
@@ -29,3 +29,4 @@ futures-util = "0.3"
 image = "0.25"
 ab_glyph = "0.2"
 tauri-plugin-updater = "2.10.0"
+tauri-plugin-opener = "2.5.3"

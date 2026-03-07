@@ -114,7 +114,10 @@ what-pressed/
 Bump the version across all config files:
 
 ```bash
-npm run bump 0.2.0
+npm run bump patch   # 0.1.6 -> 0.1.7
+npm run bump minor   # 0.1.6 -> 0.2.0
+npm run bump major   # 0.1.6 -> 1.0.0
+npm run bump 2.0.0   # explicit version
 ```
 
 Then commit, tag, and push:

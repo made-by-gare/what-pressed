@@ -184,7 +184,7 @@ async fn start_server(state: tauri::State<'_, AppState>, port: u16) -> Result<()
     let active_layout = state.active_layout.clone();
     let layout_version_rx = state.layout_version_rx.clone();
 
-    let shutdown_tx = server::start_server(port, input_rx, data_dir, active_layout, layout_version_rx).await;
+    let shutdown_tx = server::start_server(port, input_rx, data_dir, active_layout, layout_version_rx).await?;
 
     let mut handle = state.server_handle.lock().unwrap();
     *handle = Some(ServerHandle { port, shutdown_tx });
@@ -234,6 +234,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app
                 .path()

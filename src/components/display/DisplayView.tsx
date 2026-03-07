@@ -10,6 +10,7 @@ import {
   setActiveLayout,
 } from "../../lib/commands";
 import { inputIdToString } from "../../types/input";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export function DisplayView() {
   const inputState = useInputState();
@@ -18,11 +19,28 @@ export function DisplayView() {
   const [serverPort, setServerPort] = useState<number | null>(null);
   const [portInput, setPortInput] = useState(9120);
 
-  // Restore last used layout
+  // Auto-start server on mount if previously running
   useEffect(() => {
     getServerPort()
-      .then(setServerPort)
+      .then((port) => {
+        if (port) {
+          setServerPort(port);
+        } else {
+          const savedPort = localStorage.getItem("wp-server-port");
+          if (savedPort) {
+            const p = parseInt(savedPort);
+            setPortInput(p);
+            startServer(p)
+              .then(() => setServerPort(p))
+              .catch(() => {});
+          }
+        }
+      })
       .catch(() => {});
+  }, []);
+
+  // Restore last used layout when layout list is available
+  useEffect(() => {
     const last = localStorage.getItem("wp-last-layout");
     if (last && layoutNames.includes(last)) {
       loadLayout(last);
@@ -46,11 +64,13 @@ export function DisplayView() {
   const handleStartServer = async () => {
     await startServer(portInput);
     setServerPort(portInput);
+    localStorage.setItem("wp-server-port", String(portInput));
   };
 
   const handleStopServer = async () => {
     await stopServer();
     setServerPort(null);
+    localStorage.removeItem("wp-server-port");
   };
 
   const pressedSet = new Set(
@@ -90,7 +110,16 @@ export function DisplayView() {
           {serverPort ? (
             <div>
               <div className="server-status">Running on port {serverPort}</div>
-              <div className="server-url">http://localhost:{serverPort}/</div>
+              <a
+                className="server-url"
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openUrl(`http://localhost:${serverPort}/`);
+                }}
+              >
+                http://localhost:{serverPort}/
+              </a>
               <button className="btn btn-danger" onClick={handleStopServer}>
                 Stop Server
               </button>
@@ -175,11 +204,16 @@ export function DisplayView() {
           margin-bottom: 4px;
         }
         .server-url {
+          display: block;
           font-family: monospace;
           font-size: 12px;
-          color: #999;
+          color: #6cb4ee;
           margin-bottom: 8px;
-          user-select: all;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .server-url:hover {
+          text-decoration: underline;
         }
         .server-start {
           display: flex;

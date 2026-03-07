@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri_conf_schema.json",
   "productName": "WhatPressed",
   "identifier": "com.madebygare.what-pressed",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
