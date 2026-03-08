@@ -42,6 +42,44 @@
     return `${id.type}:${id.value}`;
   }
 
+  function isImageRefEmpty(ref) {
+    if (!ref) return true;
+    if (typeof ref === "string") return ref === "";
+    return false;
+  }
+
+  function getImageRefFilename(ref) {
+    if (typeof ref === "string") return ref;
+    return ref.source;
+  }
+
+  function createImageElement(imageRef, displayW, displayH) {
+    if (isImageRefEmpty(imageRef)) return null;
+
+    if (typeof imageRef === "string") {
+      // Direct file reference
+      const img = new Image();
+      img.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${imageRef}`;
+      return img;
+    }
+
+    // Sprite rect reference - use canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = displayW;
+    canvas.height = displayH;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(
+        img,
+        imageRef.x, imageRef.y, imageRef.w, imageRef.h,
+        0, 0, displayW, displayH,
+      );
+    };
+    img.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${imageRef.source}`;
+    return canvas;
+  }
+
   function buildDisplay() {
     container.innerHTML = "";
     elements.clear();
@@ -72,26 +110,19 @@
       el.style.transform = `rotate(${entry.rotation}deg)`;
       el.style.zIndex = entry.z_index;
 
-      const imgUnpressed = new Image();
-      if (atlasEntry.unpressed_image) {
-        imgUnpressed.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${atlasEntry.unpressed_image}`;
-      }
+      const unpressedEl = createImageElement(atlasEntry.unpressed_image, w, h);
+      const pressedEl = createImageElement(atlasEntry.pressed_image, w, h);
+      if (pressedEl) pressedEl.style.display = "none";
 
-      const imgPressed = new Image();
-      if (atlasEntry.pressed_image) {
-        imgPressed.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${atlasEntry.pressed_image}`;
-        imgPressed.style.display = "none";
-      }
-
-      el.appendChild(imgUnpressed);
-      el.appendChild(imgPressed);
+      if (unpressedEl) el.appendChild(unpressedEl);
+      if (pressedEl) el.appendChild(pressedEl);
       container.appendChild(el);
 
       elements.set(entry.id, {
         el,
         atlasEntry,
-        imgPressed,
-        imgUnpressed,
+        imgPressed: pressedEl,
+        imgUnpressed: unpressedEl,
       });
     }
   }
@@ -105,8 +136,8 @@
       const isPressed = pressedSet.has(
         inputIdToString(data.atlasEntry.input_id),
       );
-      data.imgUnpressed.style.display = isPressed ? "none" : "";
-      data.imgPressed.style.display = isPressed ? "" : "none";
+      if (data.imgUnpressed) data.imgUnpressed.style.display = isPressed ? "none" : "";
+      if (data.imgPressed) data.imgPressed.style.display = isPressed ? "" : "none";
     }
   }
 

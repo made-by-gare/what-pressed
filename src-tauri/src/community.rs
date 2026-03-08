@@ -140,15 +140,15 @@ pub async fn install_atlas(
     let mut image_files: Vec<String> = Vec::new();
     for entry in &atlas.entries {
         if !entry.pressed_image.is_empty() {
-            image_files.push(entry.pressed_image.clone());
+            image_files.push(entry.pressed_image.filename().to_string());
         }
         if !entry.unpressed_image.is_empty() {
-            image_files.push(entry.unpressed_image.clone());
+            image_files.push(entry.unpressed_image.filename().to_string());
         }
     }
     // Also source images
     for img in &atlas.source_images {
-        image_files.push(img.clone());
+        image_files.push(img.filename().to_string());
     }
     // Deduplicate
     image_files.sort();

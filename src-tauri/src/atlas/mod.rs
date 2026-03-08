@@ -1,17 +1,77 @@
-pub mod default;
-
 use crate::input::types::InputId;
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+
+/// An image reference: either a plain filename string or a rect within a source image.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ImageRef {
+    Rect {
+        source: String,
+        x: u32,
+        y: u32,
+        w: u32,
+        h: u32,
+    },
+    File(String),
+}
+
+impl ImageRef {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            ImageRef::File(s) => s.is_empty(),
+            ImageRef::Rect { .. } => false,
+        }
+    }
+
+    /// Returns the filename this ref points to (the file itself, or the source image).
+    pub fn filename(&self) -> &str {
+        match self {
+            ImageRef::File(s) => s,
+            ImageRef::Rect { source, .. } => source,
+        }
+    }
+}
+
+impl Default for ImageRef {
+    fn default() -> Self {
+        ImageRef::File(String::new())
+    }
+}
+
+/// A source image: either a plain filename string or an object with metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SourceImage {
+    WithMeta {
+        filename: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grid_width: Option<u32>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        grid_height: Option<u32>,
+    },
+    File(String),
+}
+
+impl SourceImage {
+    pub fn filename(&self) -> &str {
+        match self {
+            SourceImage::File(s) => s,
+            SourceImage::WithMeta { filename, .. } => filename,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AtlasEntry {
     pub id: String,
     pub input_id: InputId,
     pub label: String,
-    pub pressed_image: String,
-    pub unpressed_image: String,
+    #[serde(default)]
+    pub pressed_image: ImageRef,
+    #[serde(default)]
+    pub unpressed_image: ImageRef,
     pub width: u32,
     pub height: u32,
 }
@@ -22,7 +82,7 @@ pub struct Atlas {
     pub version: u32,
     pub entries: Vec<AtlasEntry>,
     #[serde(default)]
-    pub source_images: Vec<String>,
+    pub source_images: Vec<SourceImage>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub semver: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -181,26 +241,3 @@ pub fn import_atlas_zip(data_dir: &Path, zip_path: &str) -> Result<String, Strin
     Ok(atlas.name)
 }
 
-pub fn crop_atlas_image(
-    data_dir: &Path,
-    atlas_name: &str,
-    source_image: &str,
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
-) -> Result<String, String> {
-    let images_dir = atlas_dir(data_dir, atlas_name).join("images");
-    let source_path = images_dir.join(source_image);
-
-    let img = image::open(&source_path).map_err(|e| format!("Failed to open image: {}", e))?;
-    let cropped = img.crop_imm(x, y, w, h);
-
-    let filename = format!("crop_{}.png", uuid::Uuid::new_v4());
-    let dest = images_dir.join(&filename);
-    cropped
-        .save(&dest)
-        .map_err(|e| format!("Failed to save cropped image: {}", e))?;
-
-    Ok(filename)
-}

@@ -1,5 +1,7 @@
+import React from "react";
 import type { Layout } from "../../types/layout";
-import type { Atlas } from "../../types/atlas";
+import type { Atlas, ImageRef } from "../../types/atlas";
+import { imageRefIsEmpty } from "../../types/atlas";
 import { inputIdToString } from "../../types/input";
 import { AtlasImage } from "../atlas/AtlasImage";
 
@@ -41,15 +43,44 @@ export function DisplayRenderer({
         if (!atlasEntry) return null;
 
         const isPressed = pressedSet.has(inputIdToString(atlasEntry.input_id));
-        const image = isPressed
-          ? atlasEntry.pressed_image
-          : atlasEntry.unpressed_image;
+        const pressedRef = atlasEntry.pressed_image;
+        const unpressedRef = atlasEntry.unpressed_image;
+        const hasPressedImg = !imageRefIsEmpty(pressedRef);
+        const hasUnpressedImg = !imageRefIsEmpty(unpressedRef);
 
         const imgStyle = {
           width: "100%" as const,
           height: "100%" as const,
           objectFit: "contain" as const,
           imageRendering: "pixelated" as const,
+        };
+
+        const renderImage = (ref: ImageRef, visible: boolean) => {
+          const visStyle = { ...imgStyle, display: visible ? "block" as const : "none" as const };
+          if (serverBaseUrl) {
+            return typeof ref === "string" ? (
+              <img
+                src={getServerImageUrl(ref)}
+                alt={atlasEntry.label}
+                style={visStyle}
+              />
+            ) : (
+              <ServerSpriteImage
+                src={getServerImageUrl(ref.source)}
+                rect={ref}
+                alt={atlasEntry.label}
+                style={visStyle}
+              />
+            );
+          }
+          return (
+            <AtlasImage
+              atlasName={layout.atlas_name}
+              imageRef={ref}
+              alt={atlasEntry.label}
+              style={visStyle}
+            />
+          );
         };
 
         return (
@@ -65,24 +96,44 @@ export function DisplayRenderer({
               zIndex: entry.z_index,
             }}
           >
-            {image &&
-              (serverBaseUrl ? (
-                <img
-                  src={getServerImageUrl(image)}
-                  alt={atlasEntry.label}
-                  style={imgStyle}
-                />
-              ) : (
-                <AtlasImage
-                  atlasName={layout.atlas_name}
-                  filename={image}
-                  alt={atlasEntry.label}
-                  style={imgStyle}
-                />
-              ))}
+            {hasUnpressedImg && renderImage(unpressedRef, !isPressed)}
+            {hasPressedImg && renderImage(pressedRef, isPressed)}
           </div>
         );
       })}
     </div>
   );
+}
+
+/** Renders a sprite rect from a server-hosted image via canvas. */
+function ServerSpriteImage({
+  src,
+  rect,
+  alt,
+  style,
+}: {
+  src: string;
+  rect: { x: number; y: number; w: number; h: number };
+  alt: string;
+  style: React.CSSProperties;
+}) {
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      canvas.width = rect.w;
+      canvas.height = rect.h;
+      ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w, rect.h);
+    };
+    img.src = src;
+  }, [src, rect.x, rect.y, rect.w, rect.h]);
+
+  return <canvas ref={canvasRef} title={alt} style={style} />;
 }

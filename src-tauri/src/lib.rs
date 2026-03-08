@@ -136,23 +136,6 @@ fn import_atlas_zip(
     atlas::import_atlas_zip(&state.data_dir, &zip_path)
 }
 
-#[tauri::command]
-fn crop_atlas_image(
-    state: tauri::State<'_, AppState>,
-    atlas_name: String,
-    source_image: String,
-    x: u32,
-    y: u32,
-    w: u32,
-    h: u32,
-) -> Result<String, String> {
-    atlas::crop_atlas_image(&state.data_dir, &atlas_name, &source_image, x, y, w, h)
-}
-
-#[tauri::command]
-fn create_default_atlas(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    atlas::default::create_default_atlas(&state.data_dir)
-}
 
 // ── Layout ──
 
@@ -383,8 +366,6 @@ pub fn run() {
             import_atlas_image,
             export_atlas_zip,
             import_atlas_zip,
-            crop_atlas_image,
-            create_default_atlas,
             list_layouts,
             load_layout,
             save_layout,

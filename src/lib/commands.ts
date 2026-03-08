@@ -57,21 +57,6 @@ export function importAtlasZip(zipPath: string): Promise<string> {
   return invoke("import_atlas_zip", { zipPath });
 }
 
-export function cropAtlasImage(
-  atlasName: string,
-  sourceImage: string,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-): Promise<string> {
-  return invoke("crop_atlas_image", { atlasName, sourceImage, x, y, w, h });
-}
-
-export function createDefaultAtlas(): Promise<void> {
-  return invoke("create_default_atlas");
-}
-
 // Layout
 export function listLayouts(): Promise<string[]> {
   return invoke("list_layouts");

@@ -68,7 +68,7 @@ function App() {
           className={activeTab === "atlas" ? "active" : ""}
           onClick={() => setActiveTab("atlas")}
         >
-          Atlas Builder
+          Atlases
         </button>
         {appVersion && <span className="app-version">v{appVersion}</span>}
       </nav>

@@ -1,6 +1,7 @@
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 import type { Layout, LayoutEntry } from "../../types/layout";
 import type { Atlas } from "../../types/atlas";
+import { imageRefIsEmpty } from "../../types/atlas";
 import { AtlasImage } from "../atlas/AtlasImage";
 
 interface Props {
@@ -30,14 +31,19 @@ export function LayoutCanvas({
     origX: number;
     origY: number;
   } | null>(null);
+  const [scale, setScale] = useState(1);
 
-  const scale = canvasRef.current
-    ? Math.min(
-        canvasRef.current.clientWidth / layout.canvas_width,
-        canvasRef.current.clientHeight / layout.canvas_height,
-        1,
-      )
-    : 1;
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const update = () => {
+      setScale(Math.min(el.clientWidth / layout.canvas_width, el.clientHeight / layout.canvas_height, 1));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [layout.canvas_width, layout.canvas_height]);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, entry: LayoutEntry) => {
@@ -140,10 +146,10 @@ export function LayoutCanvas({
               }}
               onMouseDown={(e) => handleMouseDown(e, entry)}
             >
-              {atlasEntry.unpressed_image ? (
+              {!imageRefIsEmpty(atlasEntry.unpressed_image) ? (
                 <AtlasImage
                   atlasName={layout.atlas_name}
-                  filename={atlasEntry.unpressed_image}
+                  imageRef={atlasEntry.unpressed_image}
                   alt={atlasEntry.label}
                   className="canvas-entry-img"
                 />

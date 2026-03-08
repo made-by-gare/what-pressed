@@ -67,5 +67,9 @@ export function useLayout() {
     [currentLayout, refresh],
   );
 
-  return { layoutNames, currentLayout, loading, load, save, remove, refresh };
+  const clear = useCallback(() => {
+    setCurrentLayout(null);
+  }, []);
+
+  return { layoutNames, currentLayout, loading, load, save, remove, refresh, clear };
 }

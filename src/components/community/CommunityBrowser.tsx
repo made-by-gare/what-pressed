@@ -195,7 +195,11 @@ export function CommunityBrowser() {
         ))}
         {index && filtered.length === 0 && (
           <div className="empty-state">
-            {search ? "No atlases match your search." : "No community atlases available yet."}
+            {installedOnly
+              ? "No installed atlases. Browse and install some from the list."
+              : search
+                ? "No atlases match your search."
+                : "No community atlases available yet."}
           </div>
         )}
       </div>
@@ -238,6 +242,7 @@ export function CommunityBrowser() {
       <style>{`
         .community-browser {
           max-width: 900px;
+          width: 100%;
           margin: 0 auto;
           padding: 20px;
         }
@@ -292,6 +297,7 @@ export function CommunityBrowser() {
           display: flex;
           flex-direction: column;
           gap: 12px;
+          min-height: 200px;
         }
         .community-card {
           display: flex;

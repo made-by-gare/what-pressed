@@ -79,5 +79,9 @@ export function useAtlas() {
 
   const atlasNames = atlasList.map((a) => a.name);
 
-  return { atlasList, atlasNames, currentAtlas, loading, load, save, remove, refresh };
+  const clear = useCallback(() => {
+    setCurrentAtlas(null);
+  }, []);
+
+  return { atlasList, atlasNames, currentAtlas, loading, load, save, remove, refresh, clear };
 }

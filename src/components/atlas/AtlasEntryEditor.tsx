@@ -1,22 +1,25 @@
 import { useState, useEffect, useRef } from "react";
-import type { AtlasEntry } from "../../types/atlas";
+import type { AtlasEntry, ImageRef, SourceImage } from "../../types/atlas";
+import { imageRefIsEmpty } from "../../types/atlas";
 import type { InputId } from "../../types/input";
 import { inputIdToString } from "../../types/input";
 import { SourceImageRectSelector } from "./SourceImageRectSelector";
 import { AtlasImage } from "./AtlasImage";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 interface Props {
   entry: AtlasEntry;
   atlasName: string;
   isPressed: boolean;
   currentInput: InputId | null;
-  sourceImages: string[];
-  onUpdate?: (entry: AtlasEntry) => void;
-  onRemove?: () => void;
-  onUploadImage?: (
+  sourceImages: SourceImage[];
+  onUpdate: (entry: AtlasEntry) => void;
+  onRemove: () => void;
+  onUploadImage: (
     entryId: string,
     field: "pressed_image" | "unpressed_image",
   ) => void;
+  onUpdateSource?: (filename: string, updated: SourceImage) => void;
 }
 
 // "idle" = not listening
@@ -33,6 +36,7 @@ export function AtlasEntryEditor({
   onUpdate,
   onRemove,
   onUploadImage,
+  onUpdateSource,
 }: Props) {
   const [listenPhase, setListenPhase] = useState<ListenPhase>("idle");
   const [allowMouse, setAllowMouse] = useState(false);
@@ -53,8 +57,6 @@ export function AtlasEntryEditor({
     setListenPhase("idle");
   };
 
-  // When allowMouse changes during listening, temporarily go idle so the
-  // checkbox click (and its release) are fully ignored, then re-gate.
   useEffect(() => {
     if (listenPhase === "waitForInput") {
       setListenPhase("idle");
@@ -63,60 +65,56 @@ export function AtlasEntryEditor({
     }
   }, [allowMouse]);
 
-  // Main assignment logic
   useEffect(() => {
     if (listenPhase === "idle") return;
 
     if (listenPhase === "waitForRelease") {
-      // Wait until all inputs are released before accepting new input
       if (!currentInput) {
         setListenPhase("waitForInput");
       }
       return;
     }
 
-    // listenPhase === "waitForInput"
     if (!currentInput) return;
     if (!allowMouse && currentInput.type === "MouseButton") return;
 
-    onUpdateRef.current?.({ ...entryRef.current, input_id: currentInput });
+    onUpdateRef.current({ ...entryRef.current, input_id: currentInput });
     setListenPhase("idle");
   }, [listenPhase, currentInput, allowMouse]);
 
-  const readOnly = !onUpdate;
-
-  const handleCropComplete = (filename: string) => {
-    if (selectingFor && onUpdate) {
-      onUpdate({ ...entry, [selectingFor]: filename });
+  const handleRectSelect = (ref_: ImageRef) => {
+    if (selectingFor) {
+      // Only auto-set size from rect when the field had no image before
+      const wasEmpty = imageRefIsEmpty(entry[selectingFor]);
+      const sizeUpdate =
+        wasEmpty && typeof ref_ !== "string"
+          ? { width: ref_.w, height: ref_.h }
+          : {};
+      onUpdate({ ...entry, [selectingFor]: ref_, ...sizeUpdate });
     }
     setSelectingFor(null);
   };
 
   return (
     <div className={`entry-editor ${isPressed ? "pressed" : ""}`}>
-      <div className="entry-header">
-        {readOnly ? (
-          <span className="entry-label">{entry.label}</span>
-        ) : (
+      <div className="entry-editor-header">
+        <div className="entry-editor-title">{entry.label || "Untitled"}</div>
+        <span className="entry-editor-input-badge">{inputIdToString(entry.input_id)}</span>
+      </div>
+
+      <div className="entry-detail">
+        <div className="entry-detail-row">
+          <label>Label:</label>
           <input
             type="text"
             value={entry.label}
             onChange={(e) => onUpdate({ ...entry, label: e.target.value })}
-            className="entry-label"
           />
-        )}
-        {onRemove && (
-          <button className="btn btn-danger btn-sm" onClick={onRemove}>
-            Remove
-          </button>
-        )}
-      </div>
-
-      <div className="entry-row">
-        <label>Input:</label>
-        <span className="input-badge">{inputIdToString(entry.input_id)}</span>
-        {!readOnly && (
-          listenPhase !== "idle" ? (
+        </div>
+        <div className="entry-detail-row">
+          <label>Input:</label>
+          <span className="input-badge">{inputIdToString(entry.input_id)}</span>
+          {listenPhase !== "idle" ? (
             <>
               <span className="listening-indicator">
                 {listenPhase === "waitForRelease"
@@ -132,106 +130,92 @@ export function AtlasEntryEditor({
                   checked={allowMouse}
                   onChange={(e) => setAllowMouse(e.target.checked)}
                 />
-                Allow mouse
+                Mouse
               </label>
             </>
           ) : (
             <button className="btn btn-sm" onClick={startListening}>
               Assign
             </button>
-          )
-        )}
-      </div>
-
-      <div className="entry-row">
-        <label>Size:</label>
-        {readOnly ? (
-          <span>{entry.width} x {entry.height}</span>
-        ) : (
-          <>
-            <input
-              type="number"
-              value={entry.width}
-              onChange={(e) =>
-                onUpdate({ ...entry, width: parseInt(e.target.value) || 64 })
-              }
-              style={{ width: 60 }}
-            />
-            <span>x</span>
-            <input
-              type="number"
-              value={entry.height}
-              onChange={(e) =>
-                onUpdate({ ...entry, height: parseInt(e.target.value) || 64 })
-              }
-              style={{ width: 60 }}
-            />
-          </>
-        )}
-      </div>
-
-      <div className="entry-images">
-        <div className="image-slot">
-          <div className="image-label">Unpressed</div>
-          {entry.unpressed_image ? (
-            <AtlasImage
-              atlasName={atlasName}
-              filename={entry.unpressed_image}
-              alt="unpressed"
-              className="image-preview"
-            />
-          ) : (
-            <div className="image-placeholder" />
-          )}
-          {!readOnly && (
-            <div className="image-buttons">
-              {sourceImages.length > 0 && (
-                <button
-                  className="btn btn-sm"
-                  onClick={() => setSelectingFor("unpressed_image")}
-                >
-                  From Source
-                </button>
-              )}
-              <button
-                className="btn btn-sm"
-                onClick={() => onUploadImage?.(entry.id, "unpressed_image")}
-              >
-                Upload
-              </button>
-            </div>
           )}
         </div>
-        <div className="image-slot">
-          <div className="image-label">Pressed</div>
-          {entry.pressed_image ? (
-            <AtlasImage
-              atlasName={atlasName}
-              filename={entry.pressed_image}
-              alt="pressed"
-              className="image-preview"
-            />
-          ) : (
-            <div className="image-placeholder" />
-          )}
-          {!readOnly && (
-            <div className="image-buttons">
-              {sourceImages.length > 0 && (
-                <button
-                  className="btn btn-sm"
-                  onClick={() => setSelectingFor("pressed_image")}
-                >
-                  From Source
-                </button>
+        <div className="entry-detail-row">
+          <label>Display:</label>
+          <input
+            type="number"
+            value={entry.width}
+            onChange={(e) =>
+              onUpdate({ ...entry, width: parseInt(e.target.value) || 64 })
+            }
+            style={{ width: 72 }}
+          />
+          <span>x</span>
+          <input
+            type="number"
+            value={entry.height}
+            onChange={(e) =>
+              onUpdate({ ...entry, height: parseInt(e.target.value) || 64 })
+            }
+            style={{ width: 72 }}
+          />
+          <span className="entry-size-hint">px</span>
+        </div>
+        {(["unpressed_image", "pressed_image"] as const).map((field) => {
+          const ref = entry[field];
+          const empty = imageRefIsEmpty(ref);
+          return (
+            <div key={field} className="entry-img-section">
+              <div className="entry-img-section-header">
+                <span className="entry-img-section-label">
+                  {field === "unpressed_image" ? "Unpressed" : "Pressed"}
+                </span>
+                <div className="entry-img-section-actions">
+                  {sourceImages.length > 0 && (
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => setSelectingFor(field)}
+                    >
+                      {!empty && typeof ref !== "string" ? "Edit Rect" : "From Source"}
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => onUploadImage(entry.id, field)}
+                  >
+                    Upload
+                  </button>
+                </div>
+              </div>
+              {!empty ? (
+                <div className="entry-img-section-content">
+                  <AtlasImage
+                    atlasName={atlasName}
+                    imageRef={ref}
+                    alt={field === "unpressed_image" ? "unpressed" : "pressed"}
+                    className="entry-img-section-preview"
+                  />
+                  <span className="entry-img-ref-info">
+                    {typeof ref === "string"
+                      ? ref
+                      : `${ref.source} (${ref.x}, ${ref.y}, ${ref.w}x${ref.h})`}
+                  </span>
+                </div>
+              ) : (
+                <div className="entry-img-section-empty">No image set</div>
               )}
-              <button
-                className="btn btn-sm"
-                onClick={() => onUploadImage?.(entry.id, "pressed_image")}
-              >
-                Upload
-              </button>
             </div>
-          )}
+          );
+        })}
+        <div className="entry-detail-footer">
+          <button className="btn btn-danger btn-sm" onClick={async () => {
+            const confirmed = await ask(
+              `Remove entry "${entry.label}"?`,
+              { title: "Remove Entry", kind: "warning" },
+            );
+            if (confirmed) onRemove();
+          }}>
+            Remove Entry
+          </button>
         </div>
       </div>
 
@@ -239,8 +223,10 @@ export function AtlasEntryEditor({
         <SourceImageRectSelector
           atlasName={atlasName}
           sourceImages={sourceImages}
-          onSelect={handleCropComplete}
+          existingRef={entry[selectingFor]}
+          onSelect={handleRectSelect}
           onCancel={() => setSelectingFor(null)}
+          onUpdateSource={onUpdateSource}
         />
       )}
 
@@ -249,46 +235,57 @@ export function AtlasEntryEditor({
           background: #181818;
           border: 1px solid #3a3a3a;
           border-radius: 6px;
-          padding: 12px;
           transition: border-color 0.15s;
         }
         .entry-editor.pressed {
           border-color: #e8730c;
           box-shadow: 0 0 8px rgba(232, 115, 12, 0.3);
         }
-        .entry-header {
+        .entry-editor-header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          margin-bottom: 8px;
+          gap: 10px;
+          padding: 10px 12px;
+          border-bottom: 1px solid #2a2a2a;
         }
-        .entry-label {
+        .entry-editor-title {
+          font-size: 15px;
           font-weight: 600;
-          font-size: 14px;
-          background: transparent;
-          border: 1px solid transparent;
           color: #e0e0e0;
-          padding: 4px 8px;
-          border-radius: 4px;
+          flex: 1;
         }
-        .entry-label:focus {
-          border-color: #3a3a3a;
+        .entry-editor-input-badge {
+          font-size: 11px;
+          font-family: monospace;
+          color: #777;
           background: #2a2a2a;
+          padding: 2px 6px;
+          border-radius: 3px;
         }
-        .entry-row {
+        .entry-detail {
+          padding: 10px 12px 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .entry-detail-row {
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: 8px;
           font-size: 13px;
         }
-        .entry-row label {
-          min-width: 50px;
+        .entry-detail-row label {
+          min-width: 44px;
           color: #999;
+          font-size: 12px;
+        }
+        .entry-detail-row input[type="text"] {
+          flex: 1;
+          min-width: 0;
         }
         .input-badge {
           background: #2a2a2a;
-          padding: 4px 10px;
+          padding: 3px 8px;
           border-radius: 4px;
           font-family: monospace;
           font-size: 12px;
@@ -296,6 +293,7 @@ export function AtlasEntryEditor({
         .listening-indicator {
           color: #e8730c;
           font-style: italic;
+          font-size: 12px;
           animation: pulse 1s infinite;
         }
         @keyframes pulse {
@@ -305,7 +303,7 @@ export function AtlasEntryEditor({
         .mouse-toggle {
           display: flex;
           align-items: center;
-          gap: 4px;
+          gap: 3px;
           font-size: 11px;
           color: #999;
           cursor: pointer;
@@ -314,38 +312,66 @@ export function AtlasEntryEditor({
         .mouse-toggle input {
           width: auto;
         }
-        .entry-images {
-          display: flex;
-          gap: 16px;
-        }
-        .image-slot {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-        }
-        .image-label {
+        .entry-size-hint {
           font-size: 11px;
+          color: #666;
+        }
+        .entry-img-section {
+          border: 1px solid #2a2a2a;
+          border-radius: 6px;
+          overflow: hidden;
+        }
+        .entry-img-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 10px;
+          background: #222;
+        }
+        .entry-img-section-label {
+          font-size: 12px;
+          font-weight: 600;
           color: #999;
           text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        .image-preview {
-          width: 64px;
-          height: 64px;
+        .entry-img-section-actions {
+          display: flex;
+          gap: 4px;
+        }
+        .entry-img-section-content {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 10px;
+        }
+        .entry-img-section-preview {
+          width: 48px;
+          height: 48px;
           object-fit: contain;
           background: #2a2a2a;
           border-radius: 4px;
+          flex-shrink: 0;
         }
-        .image-placeholder {
-          width: 64px;
-          height: 64px;
-          background: #2a2a2a;
-          border: 1px dashed #3a3a3a;
-          border-radius: 4px;
+        .entry-img-ref-info {
+          font-size: 11px;
+          font-family: monospace;
+          color: #777;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          min-width: 0;
         }
-        .image-buttons {
+        .entry-img-section-empty {
+          padding: 10px;
+          font-size: 12px;
+          color: #555;
+          font-style: italic;
+        }
+        .entry-detail-footer {
           display: flex;
-          gap: 4px;
+          justify-content: flex-end;
+          padding-top: 4px;
         }
       `}</style>
     </div>

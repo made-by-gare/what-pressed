@@ -182,9 +182,9 @@ export function DisplayView() {
       <style>{`
         .display-view {
           display: grid;
-          grid-template-columns: 280px 1fr;
+          grid-template-columns: 240px 1fr;
           gap: 16px;
-          height: calc(100vh - 80px);
+          height: 100%;
         }
         .control-row {
           display: flex;

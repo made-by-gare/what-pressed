@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { injectKeyEvent } from "../lib/commands";
 
 /**
@@ -68,12 +68,15 @@ function mapCodeToRdev(code: string): string | null {
  * when the Tauri/WebView2 window has focus.
  */
 export function useWebviewInput() {
+  const pressedKeysRef = useRef(new Set<string>());
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore repeated events (key held down)
       if (e.repeat) return;
       const key = mapCodeToRdev(e.code);
       if (key) {
+        pressedKeysRef.current.add(key);
         injectKeyEvent(key, true);
       }
     };
@@ -81,15 +84,27 @@ export function useWebviewInput() {
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = mapCodeToRdev(e.code);
       if (key) {
+        pressedKeysRef.current.delete(key);
         injectKeyEvent(key, false);
       }
     };
 
+    // When the window loses focus (e.g. Meta key opens Start menu),
+    // release all keys that were injected to avoid stuck keys.
+    const handleBlur = () => {
+      for (const key of pressedKeysRef.current) {
+        injectKeyEvent(key, false);
+      }
+      pressedKeysRef.current.clear();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, []);
 }
