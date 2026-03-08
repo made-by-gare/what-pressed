@@ -238,8 +238,8 @@ export function AddEntryModal({
 
   if (view === "atlas-picker") {
     return (
-      <div className="add-entry-overlay" onClick={onClose}>
-        <div className="add-entry-modal atlas-picker-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="add-entry-overlay" onMouseDown={onClose}>
+        <div className="add-entry-modal atlas-picker-modal" onMouseDown={(e) => e.stopPropagation()}>
           <div className="aem-header">
             <button className="aem-back" onClick={() => setView("menu")}>&larr;</button>
             <span className="aem-title">From Atlas</span>
@@ -317,8 +317,8 @@ export function AddEntryModal({
   }
 
   return (
-    <div className="add-entry-overlay" onClick={onClose}>
-      <div className="add-entry-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="add-entry-overlay" onMouseDown={onClose}>
+      <div className="add-entry-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="aem-title">Add Entry</div>
 
         <div className="aem-section">

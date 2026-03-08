@@ -645,8 +645,8 @@ export function AtlasBuilder() {
       </div>
 
       {addModalOpen && (
-        <div className="add-modal-overlay" onClick={() => setAddModalOpen(false)}>
-          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="add-modal-overlay" onMouseDown={() => setAddModalOpen(false)}>
+          <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <div className="add-modal-title">Add Atlas</div>
             <div className="add-modal-section">
               <label className="add-modal-label">Create new</label>
@@ -682,8 +682,8 @@ export function AtlasBuilder() {
       )}
 
       {forkDialog && (
-        <div className="add-modal-overlay" onClick={() => setForkDialog(null)}>
-          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="add-modal-overlay" onMouseDown={() => setForkDialog(null)}>
+          <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <div className="add-modal-title">Fork Atlas</div>
             <p style={{ fontSize: 13, color: "#aaa", margin: 0 }}>
               Create an editable local copy of "{forkDialog.name}".

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type { Layout, ShapeStyle, TextStyle } from "../../types/layout";
 import { listSystemFonts } from "../../lib/commands";
 
@@ -28,7 +29,11 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
   const [fonts, setFonts] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     listSystemFonts().then(setFonts).catch(() => {});
@@ -36,11 +41,24 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        ref.current && !ref.current.contains(e.target as Node) &&
+        listRef.current && !listRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Position the dropdown when it opens
+  useEffect(() => {
+    if (open && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.bottom + 2, left: rect.left, width: rect.width });
+    }
+  }, [open]);
 
   const filtered = useMemo(() => {
     if (!search) return fonts;
@@ -48,38 +66,94 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
     return fonts.filter((f) => f.toLowerCase().includes(q));
   }, [fonts, search]);
 
+  const visible = filtered.slice(0, 100);
+
+  // Reset highlight when filtered list changes
+  useEffect(() => {
+    setHighlightIdx(-1);
+  }, [filtered.length, search]);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightIdx < 0 || !listRef.current) return;
+    const el = listRef.current.children[highlightIdx] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [highlightIdx]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (!open) {
+        // Cycle through full font list when dropdown is closed
+        const currentIdx = fonts.indexOf(value);
+        if (e.key === "ArrowDown") {
+          const next = currentIdx < fonts.length - 1 ? currentIdx + 1 : 0;
+          onChange(fonts[next]);
+        } else {
+          const prev = currentIdx > 0 ? currentIdx - 1 : fonts.length - 1;
+          onChange(fonts[prev]);
+        }
+        return;
+      }
+      // Navigate within open dropdown
+      if (e.key === "ArrowDown") {
+        setHighlightIdx((i) => Math.min(i + 1, visible.length - 1));
+      } else {
+        setHighlightIdx((i) => Math.max(i - 1, 0));
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && highlightIdx >= 0 && highlightIdx < visible.length) {
+        onChange(visible[highlightIdx]);
+        setOpen(false);
+      }
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
+  const dropdown = open && dropdownPos && createPortal(
+    <div
+      className="font-picker-dropdown"
+      ref={listRef}
+      style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+    >
+      {visible.map((f, i) => (
+        <div
+          key={f}
+          className={`font-picker-option${f === value ? " selected" : ""}${i === highlightIdx ? " highlighted" : ""}`}
+          style={{ fontFamily: f }}
+          onMouseDown={(e) => { e.preventDefault(); onChange(f); setOpen(false); }}
+          onMouseEnter={() => setHighlightIdx(i)}
+        >
+          {f}
+        </div>
+      ))}
+      {filtered.length === 0 && (
+        <div className="font-picker-option" style={{ color: "#666" }}>No fonts found</div>
+      )}
+      {filtered.length > 100 && (
+        <div className="font-picker-option" style={{ color: "#666" }}>
+          {filtered.length - 100} more - type to filter
+        </div>
+      )}
+    </div>,
+    document.body,
+  );
+
   return (
     <div ref={ref} style={{ position: "relative", flex: 1 }}>
       <input
+        ref={inputRef}
         type="text"
         value={open ? search : value}
-        onFocus={() => { setOpen(true); setSearch(""); }}
+        onClick={() => { setOpen((o) => { if (!o) setSearch(""); return !o; }); }}
         onChange={(e) => { setSearch(e.target.value); setOpen(true); }}
+        onKeyDown={handleKeyDown}
         placeholder="Search fonts..."
         style={{ width: "100%", boxSizing: "border-box" }}
       />
-      {open && (
-        <div className="font-picker-dropdown">
-          {filtered.slice(0, 100).map((f) => (
-            <div
-              key={f}
-              className={`font-picker-option${f === value ? " selected" : ""}`}
-              style={{ fontFamily: f }}
-              onMouseDown={(e) => { e.preventDefault(); onChange(f); setOpen(false); }}
-            >
-              {f}
-            </div>
-          ))}
-          {filtered.length === 0 && (
-            <div className="font-picker-option" style={{ color: "#666" }}>No fonts found</div>
-          )}
-          {filtered.length > 100 && (
-            <div className="font-picker-option" style={{ color: "#666" }}>
-              {filtered.length - 100} more - type to filter
-            </div>
-          )}
-        </div>
-      )}
+      {dropdown}
     </div>
   );
 }
@@ -142,8 +216,8 @@ export function StyleManager({ layout, onSave, onClose }: Props) {
   };
 
   return (
-    <div className="add-modal-overlay" onClick={onClose}>
-      <div className="style-mgr-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="add-modal-overlay" onMouseDown={onClose}>
+      <div className="style-mgr-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="add-modal-title">Styles</div>
 
         <div className="style-mgr-tabs">
@@ -318,20 +392,35 @@ export function StyleManager({ layout, onSave, onClose }: Props) {
                             }
                             style={{ width: 60 }}
                           />
+                          <button
+                            type="button"
+                            className={`style-toggle${style.bold ? " active" : ""}`}
+                            onClick={() => updateTextStyle(style.id, { bold: !style.bold })}
+                            title="Bold"
+                          >
+                            <strong>B</strong>
+                          </button>
+                          <button
+                            type="button"
+                            className={`style-toggle${style.italic ? " active" : ""}`}
+                            onClick={() => updateTextStyle(style.id, { italic: !style.italic })}
+                            title="Italic"
+                          >
+                            <em>I</em>
+                          </button>
                         </div>
-                        <div className="style-mgr-row">
-                          <label>Bold:</label>
-                          <input
-                            type="checkbox"
-                            checked={style.bold ?? false}
-                            onChange={(e) => updateTextStyle(style.id, { bold: e.target.checked })}
-                          />
-                          <label style={{ marginLeft: 8 }}>Italic:</label>
-                          <input
-                            type="checkbox"
-                            checked={style.italic ?? false}
-                            onChange={(e) => updateTextStyle(style.id, { italic: e.target.checked })}
-                          />
+                        <div className="style-mgr-preview">
+                          <span
+                            style={{
+                              color: style.color,
+                              fontFamily: style.font_family ?? "sans-serif",
+                              fontSize: style.font_size ?? 14,
+                              fontWeight: style.bold ? "bold" : "normal",
+                              fontStyle: style.italic ? "italic" : "normal",
+                            }}
+                          >
+                            Sample Text 123
+                          </span>
                         </div>
                       </div>
                     )}
@@ -453,17 +542,49 @@ export function StyleManager({ layout, onSave, onClose }: Props) {
           .style-mgr-row input[type="color"] {
             flex: none;
           }
+          .style-toggle {
+            width: 32px;
+            height: 28px;
+            border: 1px solid #3a3a3a;
+            border-radius: 4px;
+            background: transparent;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .style-toggle:hover {
+            background: rgba(255,255,255,0.06);
+            color: #ccc;
+          }
+          .style-toggle.active {
+            background: rgba(232, 115, 12, 0.15);
+            border-color: rgba(232, 115, 12, 0.4);
+            color: #e8730c;
+          }
+          .style-mgr-preview {
+            margin-top: 4px;
+            padding: 8px 12px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border: 1px solid #333;
+            text-align: center;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
           .font-picker-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
+            position: fixed;
             max-height: 200px;
             overflow-y: auto;
             background: #1e1e1e;
             border: 1px solid #3a3a3a;
             border-radius: 4px;
-            z-index: 100;
+            z-index: 10000;
+            box-sizing: border-box;
           }
           .font-picker-option {
             padding: 4px 8px;
@@ -474,7 +595,8 @@ export function StyleManager({ layout, onSave, onClose }: Props) {
             overflow: hidden;
             text-overflow: ellipsis;
           }
-          .font-picker-option:hover {
+          .font-picker-option:hover,
+          .font-picker-option.highlighted {
             background: rgba(232, 115, 12, 0.15);
           }
           .font-picker-option.selected {

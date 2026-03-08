@@ -216,8 +216,8 @@ export function CommunityBrowser() {
       </div>
 
       {forkDialog && (
-        <div className="fork-overlay" onClick={() => setForkDialog(null)}>
-          <div className="fork-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="fork-overlay" onMouseDown={() => setForkDialog(null)}>
+          <div className="fork-dialog" onMouseDown={(e) => e.stopPropagation()}>
             <div className="fork-dialog-title">Fork Atlas</div>
             <p className="fork-dialog-desc">
               Create an editable local copy of "{forkDialog.name}".

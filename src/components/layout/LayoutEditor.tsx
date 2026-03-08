@@ -590,8 +590,8 @@ export function LayoutEditor() {
 
       {/* Add Layout modal */}
       {addLayoutOpen && (
-        <div className="add-modal-overlay" onClick={() => setAddLayoutOpen(false)}>
-          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="add-modal-overlay" onMouseDown={() => setAddLayoutOpen(false)}>
+          <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <div className="add-modal-title">Add Layout</div>
             <div className="add-modal-section">
               <label className="add-modal-label">Create new</label>
@@ -664,8 +664,8 @@ export function LayoutEditor() {
 
       {/* Rename modal */}
       {renameOpen && (
-        <div className="add-modal-overlay" onClick={() => setRenameOpen(false)}>
-          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="add-modal-overlay" onMouseDown={() => setRenameOpen(false)}>
+          <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <div className="add-modal-title">Rename Layout</div>
             <div className="add-modal-section">
               <input
@@ -695,8 +695,8 @@ export function LayoutEditor() {
 
       {/* Canvas size modal */}
       {resizeOpen && (
-        <div className="add-modal-overlay" onClick={() => setResizeOpen(false)}>
-          <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="add-modal-overlay" onMouseDown={() => setResizeOpen(false)}>
+          <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
             <div className="add-modal-title">Canvas Size</div>
             <div className="add-modal-section">
               <div className="add-modal-row">
@@ -745,8 +745,8 @@ export function LayoutEditor() {
         const hasInputId = src.type !== "atlas" && !!src.input_id;
         const hasLabel = !!original.label;
         return (
-          <div className="add-modal-overlay" onClick={() => setDupOpen(false)}>
-            <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="add-modal-overlay" onMouseDown={() => setDupOpen(false)}>
+            <div className="add-modal" onMouseDown={(e) => e.stopPropagation()}>
               <div className="add-modal-title">Duplicate Layer</div>
               <div className="add-modal-section">
                 {src.type !== "atlas" && (
