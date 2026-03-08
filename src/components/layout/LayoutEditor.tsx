@@ -9,6 +9,8 @@ import { AddEntryModal } from "./AddEntryModal";
 import { StyleManager } from "./StyleManager";
 import type { Layout, LayoutEntry, EntrySource } from "../../types/layout";
 import type { Atlas } from "../../types/atlas";
+import type { InputId } from "../../types/input";
+import { InputAssign } from "../shared/InputAssign";
 import { exportLayoutZip, importLayoutZip, renameLayout, loadAtlas as loadAtlasCmd } from "../../lib/commands";
 import { open, save, ask } from "@tauri-apps/plugin-dialog";
 
@@ -41,6 +43,11 @@ export function LayoutEditor() {
   const [renameTo, setRenameTo] = useState("");
   const [resizeOpen, setResizeOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupEntryId, setDupEntryId] = useState<string | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupInputId, setDupInputId] = useState<InputId | null>(null);
+  const [dupLabelText, setDupLabelText] = useState("");
   const [resizeW, setResizeW] = useState(800);
   const [resizeH, setResizeH] = useState(600);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -224,9 +231,39 @@ export function LayoutEditor() {
     if (selectedEntryId === id) setSelectedEntryId(null);
   };
 
-  const duplicateEntry = (id: string) => {
+  const openDuplicateModal = (id: string) => {
     if (!currentLayout) return;
     const original = currentLayout.entries.find((e) => e.id === id);
+    if (!original) return;
+    const src = original.source;
+    // Default name: existing label + " Copy" (atlas entries use atlas label)
+    const currentLabel = src.type === "atlas"
+      ? (() => {
+          const atlas = atlases.get(src.atlas_name);
+          const ae = atlas?.entries.find((e) => e.id === src.entry_id);
+          return ae?.label || src.entry_id;
+        })()
+      : src.label;
+    setDupEntryId(id);
+    setDupName(currentLabel + " Copy");
+    // Pre-fill input_id if shape/inline has one
+    if (src.type !== "atlas" && src.input_id) {
+      setDupInputId({ ...src.input_id });
+    } else {
+      setDupInputId(null);
+    }
+    // Pre-fill label text if entry has a label overlay
+    if (original.label) {
+      setDupLabelText(original.label.text);
+    } else {
+      setDupLabelText("");
+    }
+    setDupOpen(true);
+  };
+
+  const confirmDuplicate = () => {
+    if (!currentLayout || !dupEntryId) return;
+    const original = currentLayout.entries.find((e) => e.id === dupEntryId);
     if (!original) return;
     const newZ = original.z_index + 1;
     // Bump entries at or above the new z_index up by 1
@@ -234,21 +271,33 @@ export function LayoutEditor() {
       e.z_index >= newZ ? { ...e, z_index: e.z_index + 1 } : e,
     );
     const source = original.source;
-    const dupSource = source.type === "atlas" ? source
-      : { ...source, label: source.label + " Copy" };
+    let dupSource: EntrySource;
+    if (source.type === "atlas") {
+      dupSource = source;
+    } else {
+      dupSource = {
+        ...source,
+        label: dupName.trim() || source.label + " Copy",
+        ...(dupInputId ? { input_id: dupInputId } : {}),
+      };
+    }
+    const dupLabel = original.label && dupLabelText !== undefined
+      ? { ...original.label, text: dupLabelText }
+      : original.label;
     const duplicate: LayoutEntry = {
       ...original,
       id: crypto.randomUUID(),
       x: original.x + 20,
       y: original.y + 20,
       z_index: newZ,
-      source: dupSource as EntrySource,
+      source: dupSource,
+      label: dupLabel,
     };
     saveLayout({
       ...currentLayout,
       entries: [...shifted, duplicate],
     });
-    setSelectedEntryId(duplicate.id);
+    setDupOpen(false);
   };
 
   const handleExport = async () => {
@@ -529,7 +578,7 @@ export function LayoutEditor() {
               });
             }}
             onAdd={() => setAddEntryOpen(true)}
-            onDuplicate={duplicateEntry}
+            onDuplicate={openDuplicateModal}
             onRemove={removeEntry}
           />
         ) : null}
@@ -683,6 +732,66 @@ export function LayoutEditor() {
           onClose={() => setStylesOpen(false)}
         />
       )}
+
+      {/* Duplicate entry modal */}
+      {dupOpen && currentLayout && (() => {
+        const original = currentLayout.entries.find((e) => e.id === dupEntryId);
+        if (!original) return null;
+        const src = original.source;
+        const hasInputId = src.type !== "atlas" && !!src.input_id;
+        const hasLabel = !!original.label;
+        return (
+          <div className="add-modal-overlay" onClick={() => setDupOpen(false)}>
+            <div className="add-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="add-modal-title">Duplicate Layer</div>
+              <div className="add-modal-section">
+                {src.type !== "atlas" && (
+                  <>
+                    <label className="add-modal-label">Name</label>
+                    <input
+                      type="text"
+                      value={dupName}
+                      onChange={(e) => setDupName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && confirmDuplicate()}
+                      autoFocus
+                      placeholder="Layer name..."
+                    />
+                  </>
+                )}
+                {hasInputId && (
+                  <>
+                    <label className="add-modal-label">Input Binding</label>
+                    <InputAssign
+                      inputId={dupInputId!}
+                      currentInput={currentInput}
+                      onAssign={(id) => setDupInputId(id)}
+                    />
+                  </>
+                )}
+                {hasLabel && (
+                  <>
+                    <label className="add-modal-label">Label Text</label>
+                    <input
+                      type="text"
+                      value={dupLabelText}
+                      onChange={(e) => setDupLabelText(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && confirmDuplicate()}
+                      placeholder="Label text..."
+                    />
+                  </>
+                )}
+                <button
+                  className="btn btn-primary"
+                  onClick={confirmDuplicate}
+                  style={{ marginTop: 4 }}
+                >
+                  Duplicate
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <style>{`
         .layout-editor {
