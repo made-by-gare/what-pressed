@@ -58,7 +58,7 @@ function mapCodeToRdev(code: string): string | null {
   };
   if (kpMap[code]) return kpMap[code];
 
-  // Unknown key — skip
+  // Unknown key - skip
   return null;
 }
 

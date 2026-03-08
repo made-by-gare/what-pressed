@@ -129,7 +129,7 @@ pub struct LayoutEntry {
     pub label: Option<LabelConfig>,
 }
 
-/// Reusable shape visual style (single state — use one for unpressed, one for pressed).
+/// Reusable shape visual style (single state - use one for unpressed, one for pressed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShapeStyle {
     pub id: String,
@@ -143,7 +143,7 @@ pub struct ShapeStyle {
     pub stroke_width: Option<f64>,
 }
 
-/// Reusable text visual style (single state — use one for unpressed, one for pressed).
+/// Reusable text visual style (single state - use one for unpressed, one for pressed).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TextStyle {
     pub id: String,

@@ -140,7 +140,7 @@
         isShape: false,
       };
     }
-    // shape — resolve unpressed and pressed styles separately
+    // shape - resolve unpressed and pressed styles separately
     const unpressedStyle = findShapeStyle(src.shape_style_id) || src;
     const pressedStyle = findShapeStyle(src.pressed_shape_style_id) || unpressedStyle;
     return {
@@ -296,7 +296,7 @@
 
     ws.onclose = () => {
       console.log("WebSocket disconnected, reconnecting in 2s...");
-      setStatus("disconnected", "What Pressed is not running — waiting for reconnect...");
+      setStatus("disconnected", "What Pressed is not running - waiting for reconnect...");
       setTimeout(connectWebSocket, 2000);
     };
 
@@ -335,7 +335,7 @@
     layout = await fetchLayout();
     if (!layout) {
       console.log("No active layout, retrying in 2s...");
-      setStatus("waiting", "Waiting for an active layout — select one in What Pressed");
+      setStatus("waiting", "Waiting for an active layout - select one in What Pressed");
       setTimeout(init, 2000);
       return;
     }

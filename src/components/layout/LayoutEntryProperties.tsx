@@ -156,7 +156,7 @@ export function LayoutEntryProperties({
           onChange={(e) => onUpdate({ ...entry, rotation: parseFloat(e.target.value) || 0 })}
         />
       </div>
-      {/* Input binding — only for non-decoration entries */}
+      {/* Input binding - only for non-decoration entries */}
       {!decoration && inputId && (
         <div className="prop-section">
           <div className="prop-section-header">Input{isAtlas ? " (read-only)" : ""}</div>
@@ -215,7 +215,7 @@ export function LayoutEntryProperties({
               value={src.shape_style_id ?? ""}
               onChange={(e) => updateSource({ shape_style_id: e.target.value || undefined })}
             >
-              <option value="">— select —</option>
+              <option value="">- select -</option>
               {shapeStyles.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -230,7 +230,7 @@ export function LayoutEntryProperties({
                   value={src.pressed_shape_style_id ?? ""}
                   onChange={(e) => updateSource({ pressed_shape_style_id: e.target.value || undefined })}
                 >
-                  <option value="">— select —</option>
+                  <option value="">- select -</option>
                   {shapeStyles.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -342,7 +342,7 @@ export function LayoutEntryProperties({
                 value={entry.label.text_style_id ?? ""}
                 onChange={(e) => updateLabel({ text_style_id: e.target.value || undefined })}
               >
-                <option value="">— select —</option>
+                <option value="">- select -</option>
                 {textStyles.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -357,7 +357,7 @@ export function LayoutEntryProperties({
                     value={entry.label.pressed_text_style_id ?? ""}
                     onChange={(e) => updateLabel({ pressed_text_style_id: e.target.value || undefined })}
                   >
-                    <option value="">— select —</option>
+                    <option value="">- select -</option>
                     {textStyles.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}

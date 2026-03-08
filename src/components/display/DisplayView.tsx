@@ -110,12 +110,12 @@ export function DisplayView({ onNavigate }: DisplayViewProps) {
           <div className="welcome-icon">&#127918;</div>
           <div className="welcome-title">Welcome to What Pressed</div>
           <p className="welcome-text">
-            Show your keyboard, mouse, and gamepad inputs as a live overlay — perfect for streams, tutorials, and videos.
+            Show your keyboard, mouse, and gamepad inputs as a live overlay - perfect for streams, tutorials, and videos.
           </p>
           <div className="welcome-steps">
             <div className="welcome-step">
               <span className="welcome-step-num">1</span>
-              <span>Create a <strong>Layout</strong> — arrange shapes, images, and inputs on a canvas</span>
+              <span>Create a <strong>Layout</strong> - arrange shapes, images, and inputs on a canvas</span>
             </div>
             <div className="welcome-step">
               <span className="welcome-step-num">2</span>
@@ -222,7 +222,7 @@ export function DisplayView({ onNavigate }: DisplayViewProps) {
         ) : loadError ? (
           <div className="panel empty-state">
             <span style={{ color: "#e74c3c" }}>
-              Failed to load "{loadError.name}" — it may use an incompatible format.
+              Failed to load "{loadError.name}" - it may use an incompatible format.
             </span>
           </div>
         ) : (

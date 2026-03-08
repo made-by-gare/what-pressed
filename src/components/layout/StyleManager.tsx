@@ -75,7 +75,7 @@ function FontPicker({ value, onChange }: { value: string; onChange: (v: string) 
           )}
           {filtered.length > 100 && (
             <div className="font-picker-option" style={{ color: "#666" }}>
-              {filtered.length - 100} more — type to filter
+              {filtered.length - 100} more - type to filter
             </div>
           )}
         </div>

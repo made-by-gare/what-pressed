@@ -290,7 +290,7 @@ fn chrono_now() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    // Format as ISO-8601 (approximate — good enough for a manifest)
+    // Format as ISO-8601 (approximate - good enough for a manifest)
     let secs_per_day = 86400u64;
     let days = now / secs_per_day;
     let time_secs = now % secs_per_day;

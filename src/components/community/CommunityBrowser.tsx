@@ -47,7 +47,7 @@ export function CommunityBrowser() {
       setManifest(man);
       setError(null);
       if (showFeedback) {
-        showToast(`Index updated — ${idx.atlases.length} atlas(es) available`);
+        showToast(`Index updated - ${idx.atlases.length} atlas(es) available`);
       }
     } catch (e) {
       setError(String(e));
@@ -133,7 +133,7 @@ export function CommunityBrowser() {
     try {
       const forkedName = await forkCommunityAtlas(sourceName, newName);
       await refresh();
-      showToast(`Forked as "${forkedName}" — find it in Atlas Builder`);
+      showToast(`Forked as "${forkedName}" - find it in Atlas Builder`);
     } catch (e) {
       setError(String(e));
     }

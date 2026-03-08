@@ -386,7 +386,7 @@ export function LayoutCanvas({
           );
         })}
 
-        {/* Transform handles overlay — rendered above all entries */}
+        {/* Transform handles overlay - rendered above all entries */}
         {selectedEntry && (() => {
           const dims = getEntryDims(selectedEntry, atlases);
           const w = dims.width * selectedEntry.scale;
@@ -439,7 +439,7 @@ export function LayoutCanvas({
                 );
               })}
 
-              {/* Rotate handle — above or below the entry */}
+              {/* Rotate handle - above or below the entry */}
               <div
                 className="rotate-stem"
                 style={{

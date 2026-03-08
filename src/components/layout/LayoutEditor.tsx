@@ -380,7 +380,7 @@ export function LayoutEditor() {
 
   return (
     <div className="layout-editor">
-      {/* Left sidebar — layout list only */}
+      {/* Left sidebar - layout list only */}
       <div className="layout-sidebar panel">
         <div className="panel-header sidebar-header">
           <span>Layouts</span>
@@ -445,10 +445,14 @@ export function LayoutEditor() {
               px
             </label>
             <button
-              className="btn btn-sm"
+              className="btn btn-sm styles-btn"
               onClick={() => setStylesOpen(true)}
-              title="Manage styles"
+              title="Manage reusable shape and text styles"
             >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{marginRight: 4, verticalAlign: -2}}>
+                <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+                <circle cx="10" cy="10" r="4.5" stroke="currentColor" strokeWidth="1.5" fill="none"/>
+              </svg>
               Styles
             </button>
             <div className="actions-menu" ref={menuRef}>
@@ -546,7 +550,7 @@ export function LayoutEditor() {
         ) : null}
       </div>
 
-      {/* Right panel — properties or layers */}
+      {/* Right panel - properties or layers */}
       <div className={`layout-properties panel${currentLayout ? " panel-open" : ""}`}>
         {selectedEntry ? (
           <LayoutEntryProperties
@@ -913,6 +917,14 @@ export function LayoutEditor() {
         }
         .snap-toggle input, .grid-size-label input {
           width: auto;
+        }
+        .styles-btn {
+          border: 1px solid rgba(232, 115, 12, 0.4) !important;
+          color: #e8730c !important;
+          background: rgba(232, 115, 12, 0.08) !important;
+        }
+        .styles-btn:hover {
+          background: rgba(232, 115, 12, 0.18) !important;
         }
         .actions-menu {
           position: relative;

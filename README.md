@@ -6,12 +6,12 @@ Users create **atlases** (input-to-image mappings with pressed/unpressed states)
 
 ## Features
 
-- **Global input capture** — keyboard, mouse, and gamepad via [rdev](https://github.com/Narsil/rdev) and [gilrs](https://gitlab.com/gilrs-project/gilrs)
-- **Atlas builder** — map any input to pressed/unpressed image pairs
-- **Layout editor** — drag-and-drop canvas to arrange atlas entries with position, scale, rotation, and z-order
-- **Live display** — real-time visualization of which inputs are active
-- **OBS browser source** — embedded HTTP server serves a transparent overlay page with WebSocket-driven updates
-- **ZIP sharing** — export/import atlases and layouts (layouts bundle their referenced atlas)
+- **Global input capture** - keyboard, mouse, and gamepad via [rdev](https://github.com/Narsil/rdev) and [gilrs](https://gitlab.com/gilrs-project/gilrs)
+- **Atlas builder** - map any input to pressed/unpressed image pairs
+- **Layout editor** - drag-and-drop canvas to arrange atlas entries with position, scale, rotation, and z-order
+- **Live display** - real-time visualization of which inputs are active
+- **OBS browser source** - embedded HTTP server serves a transparent overlay page with WebSocket-driven updates
+- **ZIP sharing** - export/import atlases and layouts (layouts bundle their referenced atlas)
 
 ## Tech Stack
 
