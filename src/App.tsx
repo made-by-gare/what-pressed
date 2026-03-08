@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { AtlasBuilder } from "./components/atlas/AtlasBuilder";
 import { LayoutEditor } from "./components/layout/LayoutEditor";
 import { DisplayView } from "./components/display/DisplayView";
+import { CommunityBrowser } from "./components/community/CommunityBrowser";
 import { useWebviewInput } from "./hooks/useWebviewInput";
 import { check } from "@tauri-apps/plugin-updater";
 import { ask } from "@tauri-apps/plugin-dialog";
@@ -11,13 +13,20 @@ type Tab = "atlas" | "layout" | "display";
 
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>("display");
+  const [appVersion, setAppVersion] = useState("");
+  const isCommunity = window.location.hash === "#/community";
 
   // Capture keyboard events from the webview and inject into the input system.
   // Needed because rdev can't see keyboard events when the Tauri window has focus on Windows.
   useWebviewInput();
 
-  // Check for updates on startup
   useEffect(() => {
+    getVersion().then(setAppVersion);
+  }, []);
+
+  // Check for updates on startup (only in main window)
+  useEffect(() => {
+    if (isCommunity) return;
     check()
       .then(async (update) => {
         if (!update) return;
@@ -29,8 +38,16 @@ function App() {
           await update.downloadAndInstall();
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch((e) => console.warn("Update check failed:", e));
+  }, [isCommunity]);
+
+  if (isCommunity) {
+    return (
+      <div className="app">
+        <CommunityBrowser />
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -53,6 +70,7 @@ function App() {
         >
           Atlas Builder
         </button>
+        {appVersion && <span className="app-version">v{appVersion}</span>}
       </nav>
       <main className="tab-content">
         {activeTab === "atlas" && <AtlasBuilder />}

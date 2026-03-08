@@ -19,6 +19,11 @@ export const AtlasImage = forwardRef<HTMLImageElement, Props>(
       readFile(`atlases/${atlasName}/images/${filename}`, {
         baseDir: BaseDirectory.AppData,
       })
+        .catch(() =>
+          readFile(`community-atlases/${atlasName}/images/${filename}`, {
+            baseDir: BaseDirectory.AppData,
+          }),
+        )
         .then((data) => {
           if (cancelled) return;
           const blob = new Blob([data]);

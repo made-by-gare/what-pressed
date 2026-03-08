@@ -11,9 +11,9 @@ interface Props {
   isPressed: boolean;
   currentInput: InputId | null;
   sourceImages: string[];
-  onUpdate: (entry: AtlasEntry) => void;
-  onRemove: () => void;
-  onUploadImage: (
+  onUpdate?: (entry: AtlasEntry) => void;
+  onRemove?: () => void;
+  onUploadImage?: (
     entryId: string,
     field: "pressed_image" | "unpressed_image",
   ) => void;
@@ -79,12 +79,14 @@ export function AtlasEntryEditor({
     if (!currentInput) return;
     if (!allowMouse && currentInput.type === "MouseButton") return;
 
-    onUpdateRef.current({ ...entryRef.current, input_id: currentInput });
+    onUpdateRef.current?.({ ...entryRef.current, input_id: currentInput });
     setListenPhase("idle");
   }, [listenPhase, currentInput, allowMouse]);
 
+  const readOnly = !onUpdate;
+
   const handleCropComplete = (filename: string) => {
-    if (selectingFor) {
+    if (selectingFor && onUpdate) {
       onUpdate({ ...entry, [selectingFor]: filename });
     }
     setSelectingFor(null);
@@ -93,65 +95,79 @@ export function AtlasEntryEditor({
   return (
     <div className={`entry-editor ${isPressed ? "pressed" : ""}`}>
       <div className="entry-header">
-        <input
-          type="text"
-          value={entry.label}
-          onChange={(e) => onUpdate({ ...entry, label: e.target.value })}
-          className="entry-label"
-        />
-        <button className="btn btn-danger btn-sm" onClick={onRemove}>
-          Remove
-        </button>
-      </div>
-
-      <div className="entry-row">
-        <label>Input:</label>
-        <span className="input-badge">{inputIdToString(entry.input_id)}</span>
-        {listenPhase !== "idle" ? (
-          <>
-            <span className="listening-indicator">
-              {listenPhase === "waitForRelease"
-                ? "Release all..."
-                : "Press a key..."}
-            </span>
-            <button className="btn btn-sm" onClick={cancelListening}>
-              Cancel
-            </button>
-            <label className="mouse-toggle">
-              <input
-                type="checkbox"
-                checked={allowMouse}
-                onChange={(e) => setAllowMouse(e.target.checked)}
-              />
-              Allow mouse
-            </label>
-          </>
+        {readOnly ? (
+          <span className="entry-label">{entry.label}</span>
         ) : (
-          <button className="btn btn-sm" onClick={startListening}>
-            Assign
+          <input
+            type="text"
+            value={entry.label}
+            onChange={(e) => onUpdate({ ...entry, label: e.target.value })}
+            className="entry-label"
+          />
+        )}
+        {onRemove && (
+          <button className="btn btn-danger btn-sm" onClick={onRemove}>
+            Remove
           </button>
         )}
       </div>
 
       <div className="entry-row">
+        <label>Input:</label>
+        <span className="input-badge">{inputIdToString(entry.input_id)}</span>
+        {!readOnly && (
+          listenPhase !== "idle" ? (
+            <>
+              <span className="listening-indicator">
+                {listenPhase === "waitForRelease"
+                  ? "Release all..."
+                  : "Press a key..."}
+              </span>
+              <button className="btn btn-sm" onClick={cancelListening}>
+                Cancel
+              </button>
+              <label className="mouse-toggle">
+                <input
+                  type="checkbox"
+                  checked={allowMouse}
+                  onChange={(e) => setAllowMouse(e.target.checked)}
+                />
+                Allow mouse
+              </label>
+            </>
+          ) : (
+            <button className="btn btn-sm" onClick={startListening}>
+              Assign
+            </button>
+          )
+        )}
+      </div>
+
+      <div className="entry-row">
         <label>Size:</label>
-        <input
-          type="number"
-          value={entry.width}
-          onChange={(e) =>
-            onUpdate({ ...entry, width: parseInt(e.target.value) || 64 })
-          }
-          style={{ width: 60 }}
-        />
-        <span>x</span>
-        <input
-          type="number"
-          value={entry.height}
-          onChange={(e) =>
-            onUpdate({ ...entry, height: parseInt(e.target.value) || 64 })
-          }
-          style={{ width: 60 }}
-        />
+        {readOnly ? (
+          <span>{entry.width} x {entry.height}</span>
+        ) : (
+          <>
+            <input
+              type="number"
+              value={entry.width}
+              onChange={(e) =>
+                onUpdate({ ...entry, width: parseInt(e.target.value) || 64 })
+              }
+              style={{ width: 60 }}
+            />
+            <span>x</span>
+            <input
+              type="number"
+              value={entry.height}
+              onChange={(e) =>
+                onUpdate({ ...entry, height: parseInt(e.target.value) || 64 })
+              }
+              style={{ width: 60 }}
+            />
+          </>
+        )}
       </div>
 
       <div className="entry-images">
@@ -167,22 +183,24 @@ export function AtlasEntryEditor({
           ) : (
             <div className="image-placeholder" />
           )}
-          <div className="image-buttons">
-            {sourceImages.length > 0 && (
+          {!readOnly && (
+            <div className="image-buttons">
+              {sourceImages.length > 0 && (
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setSelectingFor("unpressed_image")}
+                >
+                  From Source
+                </button>
+              )}
               <button
                 className="btn btn-sm"
-                onClick={() => setSelectingFor("unpressed_image")}
+                onClick={() => onUploadImage?.(entry.id, "unpressed_image")}
               >
-                From Source
+                Upload
               </button>
-            )}
-            <button
-              className="btn btn-sm"
-              onClick={() => onUploadImage(entry.id, "unpressed_image")}
-            >
-              Upload
-            </button>
-          </div>
+            </div>
+          )}
         </div>
         <div className="image-slot">
           <div className="image-label">Pressed</div>
@@ -196,22 +214,24 @@ export function AtlasEntryEditor({
           ) : (
             <div className="image-placeholder" />
           )}
-          <div className="image-buttons">
-            {sourceImages.length > 0 && (
+          {!readOnly && (
+            <div className="image-buttons">
+              {sourceImages.length > 0 && (
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setSelectingFor("pressed_image")}
+                >
+                  From Source
+                </button>
+              )}
               <button
                 className="btn btn-sm"
-                onClick={() => setSelectingFor("pressed_image")}
+                onClick={() => onUploadImage?.(entry.id, "pressed_image")}
               >
-                From Source
+                Upload
               </button>
-            )}
-            <button
-              className="btn btn-sm"
-              onClick={() => onUploadImage(entry.id, "pressed_image")}
-            >
-              Upload
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

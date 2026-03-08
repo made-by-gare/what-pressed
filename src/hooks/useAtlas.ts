@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { listen } from "@tauri-apps/api/event";
 import type { Atlas } from "../types/atlas";
+import type { AtlasInfo } from "../lib/commands";
 import {
   listAtlases,
   loadAtlas,
@@ -8,14 +10,14 @@ import {
 } from "../lib/commands";
 
 export function useAtlas() {
-  const [atlasNames, setAtlasNames] = useState<string[]>([]);
+  const [atlasList, setAtlasList] = useState<AtlasInfo[]>([]);
   const [currentAtlas, setCurrentAtlas] = useState<Atlas | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const names = await listAtlases();
-      setAtlasNames(names);
+      const list = await listAtlases();
+      setAtlasList(list);
     } catch (err) {
       console.error("Failed to list atlases:", err);
     }
@@ -23,6 +25,16 @@ export function useAtlas() {
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Listen for cross-window atlas changes (install/uninstall/fork from community browser)
+  useEffect(() => {
+    const unlisten = listen("atlases-changed", () => {
+      refresh();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [refresh]);
 
   const load = useCallback(async (name: string) => {
@@ -65,5 +77,7 @@ export function useAtlas() {
     [currentAtlas, refresh],
   );
 
-  return { atlasNames, currentAtlas, loading, load, save, remove, refresh };
+  const atlasNames = atlasList.map((a) => a.name);
+
+  return { atlasList, atlasNames, currentAtlas, loading, load, save, remove, refresh };
 }

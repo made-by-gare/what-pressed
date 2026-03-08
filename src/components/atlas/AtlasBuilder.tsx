@@ -10,12 +10,13 @@ import {
   importAtlasZip,
   createDefaultAtlas,
 } from "../../lib/commands";
+import { openCommunityBrowser } from "../../lib/communityCommands";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { AtlasImage } from "./AtlasImage";
 
 export function AtlasBuilder() {
   const {
-    atlasNames,
+    atlasList,
     currentAtlas,
     load,
     save: saveAtlas,
@@ -156,28 +157,38 @@ export function AtlasBuilder() {
   );
 
   const sourceImages = currentAtlas?.source_images ?? [];
+  const isCommunity = currentAtlas
+    ? atlasList.find((a) => a.name === currentAtlas.name)?.source === "community"
+    : false;
 
   return (
     <div className="atlas-builder">
       <div className="atlas-sidebar panel">
         <div className="panel-header">Atlases</div>
         <div className="atlas-list">
-          {atlasNames.map((name) => (
+          {atlasList.map((info) => (
             <div
-              key={name}
-              className={`atlas-item ${currentAtlas?.name === name ? "active" : ""}`}
-              onClick={() => load(name)}
+              key={info.name}
+              className={`atlas-item ${currentAtlas?.name === info.name ? "active" : ""}`}
+              onClick={() => load(info.name)}
             >
-              <span>{name}</span>
-              <button
-                className="btn btn-danger btn-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  remove(name);
-                }}
-              >
-                X
-              </button>
+              <span>
+                {info.name}
+                {info.source === "community" && (
+                  <span className="atlas-community-badge">community</span>
+                )}
+              </span>
+              {info.source === "local" && (
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    remove(info.name);
+                  }}
+                >
+                  X
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -210,6 +221,13 @@ export function AtlasBuilder() {
         >
           Generate Default KB
         </button>
+        <button
+          className="btn btn-primary"
+          style={{ marginTop: 8, width: "100%" }}
+          onClick={() => openCommunityBrowser()}
+        >
+          Browse Community
+        </button>
       </div>
 
       <div className="atlas-entries panel">
@@ -217,15 +235,30 @@ export function AtlasBuilder() {
           <>
             <div className="panel-header">
               {currentAtlas.name} - Entries
-              <button
-                className="btn btn-primary"
-                style={{ marginLeft: "auto", float: "right" }}
-                onClick={addEntry}
-              >
-                + Add Entry
-              </button>
+              {!isCommunity && (
+                <button
+                  className="btn btn-primary"
+                  style={{ marginLeft: "auto", float: "right" }}
+                  onClick={addEntry}
+                >
+                  + Add Entry
+                </button>
+              )}
             </div>
 
+            {isCommunity && (
+              <div className="atlas-readonly-notice">
+                This is a community atlas (read-only). Fork it from the Community Browser to edit.
+              </div>
+            )}
+
+            {currentAtlas.origin && (
+              <div className="atlas-origin">
+                Forked from community atlas: <strong>{currentAtlas.origin}</strong>
+              </div>
+            )}
+
+            {!isCommunity && (
             <div className="source-images-section">
               <div className="source-images-header">
                 <span className="source-images-title">Source Images</span>
@@ -257,6 +290,7 @@ export function AtlasBuilder() {
                 </div>
               )}
             </div>
+            )}
 
             <div className="entries-list">
               {currentAtlas.entries.map((entry) => (
@@ -269,9 +303,9 @@ export function AtlasBuilder() {
                     inputState.pressed.length > 0 ? inputState.pressed[0] : null
                   }
                   sourceImages={sourceImages}
-                  onUpdate={updateEntry}
-                  onRemove={() => removeEntry(entry.id)}
-                  onUploadImage={handleUploadImage}
+                  onUpdate={isCommunity ? undefined : updateEntry}
+                  onRemove={isCommunity ? undefined : () => removeEntry(entry.id)}
+                  onUploadImage={isCommunity ? undefined : handleUploadImage}
                 />
               ))}
               {currentAtlas.entries.length === 0 && (
@@ -318,6 +352,15 @@ export function AtlasBuilder() {
         .atlas-item.active {
           background: rgba(232, 115, 12, 0.15);
           color: #e8730c;
+        }
+        .atlas-community-badge {
+          font-size: 10px;
+          background: rgba(100, 180, 255, 0.15);
+          color: #6cb4ee;
+          padding: 1px 6px;
+          border-radius: 4px;
+          margin-left: 6px;
+          font-weight: 600;
         }
         .btn-sm {
           padding: 2px 8px;
@@ -384,6 +427,27 @@ export function AtlasBuilder() {
           font-size: 11px;
           color: #556;
           font-style: italic;
+        }
+        .atlas-readonly-notice {
+          font-size: 12px;
+          color: #6cb4ee;
+          padding: 8px 12px;
+          margin-bottom: 8px;
+          background: rgba(100, 180, 255, 0.08);
+          border: 1px solid rgba(100, 180, 255, 0.2);
+          border-radius: 4px;
+        }
+        .atlas-origin {
+          font-size: 12px;
+          color: #888;
+          padding: 6px 10px;
+          margin-bottom: 8px;
+          background: rgba(232, 115, 12, 0.08);
+          border: 1px solid rgba(232, 115, 12, 0.2);
+          border-radius: 4px;
+        }
+        .atlas-origin strong {
+          color: #e8730c;
         }
         .entries-list {
           display: flex;

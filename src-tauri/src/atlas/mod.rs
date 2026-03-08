@@ -23,6 +23,14 @@ pub struct Atlas {
     pub entries: Vec<AtlasEntry>,
     #[serde(default)]
     pub source_images: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semver: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 fn atlases_dir(data_dir: &Path) -> PathBuf {

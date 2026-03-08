@@ -1,4 +1,5 @@
 mod atlas;
+mod community;
 mod input;
 mod layout;
 mod server;
@@ -7,7 +8,13 @@ mod state;
 use state::{AppState, ServerHandle};
 use std::sync::{Arc, Mutex};
 use tauri::ipc::Channel;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
+
+#[derive(serde::Serialize)]
+struct AtlasInfo {
+    name: String,
+    source: String,
+}
 
 // ── Input ──
 
@@ -56,13 +63,39 @@ fn inject_key_event(state: tauri::State<'_, AppState>, key: String, pressed: boo
 // ── Atlas ──
 
 #[tauri::command]
-fn list_atlases(state: tauri::State<'_, AppState>) -> Result<Vec<String>, String> {
-    atlas::list_atlases(&state.data_dir)
+fn list_atlases(state: tauri::State<'_, AppState>) -> Result<Vec<AtlasInfo>, String> {
+    let local = atlas::list_atlases(&state.data_dir)?;
+    let community_names = community::list_community_atlases(&state.data_dir).unwrap_or_default();
+    let local_set: std::collections::HashSet<String> = local.iter().cloned().collect();
+
+    let mut result: Vec<AtlasInfo> = local
+        .into_iter()
+        .map(|name| AtlasInfo {
+            name,
+            source: "local".into(),
+        })
+        .collect();
+
+    for cn in community_names {
+        if !local_set.contains(&cn) {
+            result.push(AtlasInfo {
+                name: cn,
+                source: "community".into(),
+            });
+        }
+    }
+
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(result)
 }
 
 #[tauri::command]
 fn load_atlas(state: tauri::State<'_, AppState>, name: String) -> Result<atlas::Atlas, String> {
-    atlas::load_atlas(&state.data_dir, &name)
+    // Try local first, fall back to community
+    match atlas::load_atlas(&state.data_dir, &name) {
+        Ok(a) => Ok(a),
+        Err(_) => community::load_community_atlas(&state.data_dir, &name),
+    }
 }
 
 #[tauri::command]
@@ -222,6 +255,89 @@ fn get_active_layout(state: tauri::State<'_, AppState>) -> Result<Option<String>
     Ok(state.active_layout.lock().unwrap().clone())
 }
 
+// ── Community ──
+
+#[tauri::command]
+async fn fetch_community_index() -> Result<community::CommunityIndex, String> {
+    community::fetch_index().await
+}
+
+#[tauri::command]
+async fn install_community_atlas(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    name: String,
+    on_progress: tauri::ipc::Channel<community::InstallProgress>,
+) -> Result<(), String> {
+    community::install_atlas(&state.data_dir, &name, &on_progress).await?;
+    let _ = app.emit("atlases-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn uninstall_community_atlas(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    name: String,
+) -> Result<(), String> {
+    community::uninstall_atlas(&state.data_dir, &name)?;
+    let _ = app.emit("atlases-changed", ());
+    Ok(())
+}
+
+#[tauri::command]
+fn get_community_manifest(
+    state: tauri::State<'_, AppState>,
+) -> Result<community::CommunityManifest, String> {
+    Ok(community::load_manifest(&state.data_dir))
+}
+
+#[tauri::command]
+fn fork_community_atlas(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    name: String,
+    new_name: String,
+) -> Result<String, String> {
+    let result = community::fork_atlas(&state.data_dir, &name, &new_name)?;
+    let _ = app.emit("atlases-changed", ());
+    Ok(result)
+}
+
+#[tauri::command]
+async fn open_community_browser(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::WebviewWindowBuilder;
+    if let Some(window) = app.get_webview_window("community") {
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    WebviewWindowBuilder::new(
+        &app,
+        "community",
+        tauri::WebviewUrl::App("index.html#/community".into()),
+    )
+    .title("Community Atlases")
+    .inner_size(900.0, 650.0)
+    .build()
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn list_community_atlases(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    community::list_community_atlases(&state.data_dir)
+}
+
+#[tauri::command]
+fn load_community_atlas(
+    state: tauri::State<'_, AppState>,
+    name: String,
+) -> Result<atlas::Atlas, String> {
+    community::load_community_atlas(&state.data_dir, &name)
+}
+
 // ── App ──
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -280,6 +396,14 @@ pub fn run() {
             get_server_port,
             set_active_layout,
             get_active_layout,
+            fetch_community_index,
+            install_community_atlas,
+            uninstall_community_atlas,
+            get_community_manifest,
+            fork_community_atlas,
+            open_community_browser,
+            list_community_atlases,
+            load_community_atlas,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

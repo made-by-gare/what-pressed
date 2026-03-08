@@ -120,11 +120,18 @@ async fn atlas_handler(
     State(state): State<ServerState>,
     Path(name): Path<String>,
 ) -> impl IntoResponse {
-    let path = state
+    // Check local first, then community
+    let local_path = state.data_dir.join("atlases").join(&name).join("atlas.json");
+    let community_path = state
         .data_dir
-        .join("atlases")
+        .join("community-atlases")
         .join(&name)
         .join("atlas.json");
+    let path = if local_path.exists() {
+        local_path
+    } else {
+        community_path
+    };
     match tokio::fs::read_to_string(&path).await {
         Ok(content) => (
             StatusCode::OK,
@@ -140,12 +147,24 @@ async fn atlas_image_handler(
     State(state): State<ServerState>,
     Path((name, filename)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    let path = state
+    // Check local first, then community
+    let local_path = state
         .data_dir
         .join("atlases")
         .join(&name)
         .join("images")
         .join(&filename);
+    let community_path = state
+        .data_dir
+        .join("community-atlases")
+        .join(&name)
+        .join("images")
+        .join(&filename);
+    let path = if local_path.exists() {
+        local_path
+    } else {
+        community_path
+    };
     match tokio::fs::read(&path).await {
         Ok(data) => {
             let mime = mime_guess::from_path(&filename)

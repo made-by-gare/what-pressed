@@ -21,7 +21,12 @@ export function injectKeyEvent(key: string, pressed: boolean): Promise<void> {
 }
 
 // Atlas
-export function listAtlases(): Promise<string[]> {
+export interface AtlasInfo {
+  name: string;
+  source: "local" | "community";
+}
+
+export function listAtlases(): Promise<AtlasInfo[]> {
   return invoke("list_atlases");
 }
 

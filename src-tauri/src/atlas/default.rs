@@ -400,6 +400,10 @@ pub fn create_default_atlas(data_dir: &Path) -> Result<(), String> {
         version: 1,
         entries,
         source_images: vec![],
+        semver: None,
+        description: None,
+        author: None,
+        origin: None,
     };
 
     save_atlas(data_dir, &atlas)?;

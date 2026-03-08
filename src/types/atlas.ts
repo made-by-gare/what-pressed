@@ -15,4 +15,8 @@ export interface Atlas {
   version: number;
   entries: AtlasEntry[];
   source_images?: string[];
+  semver?: string;
+  description?: string;
+  author?: string;
+  origin?: string;
 }

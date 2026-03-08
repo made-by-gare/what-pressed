@@ -17,7 +17,7 @@ export function LayoutEditor() {
     remove,
     refresh,
   } = useLayout();
-  const { atlasNames, currentAtlas, load: loadAtlas } = useAtlas();
+  const { atlasList, currentAtlas, load: loadAtlas } = useAtlas();
   const [newName, setNewName] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [canvasWidth, setCanvasWidth] = useState(800);
@@ -173,9 +173,9 @@ export function LayoutEditor() {
             onChange={(e) => setSelectedAtlasName(e.target.value)}
           >
             <option value="">Select atlas...</option>
-            {atlasNames.map((n) => (
-              <option key={n} value={n}>
-                {n}
+            {atlasList.map((info) => (
+              <option key={info.name} value={info.name}>
+                {info.name}{info.source === "community" ? " (community)" : ""}
               </option>
             ))}
           </select>
