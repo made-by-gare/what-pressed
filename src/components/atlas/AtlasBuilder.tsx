@@ -79,8 +79,10 @@ export function AtlasBuilder() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  const atlasNameExists = atlasList.some((a) => a.name === newName.trim());
+
   const createNew = () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || atlasNameExists) return;
     const atlas: Atlas = {
       name: newName.trim(),
       version: 1,
@@ -138,7 +140,10 @@ export function AtlasBuilder() {
     for (const name of layoutNames) {
       try {
         const layout = await loadLayout(name);
-        if (layout.atlas_name === currentAtlas.name) {
+        const usesAtlas = layout.entries.some(
+          (e) => e.source.type === "atlas" && e.source.atlas_name === currentAtlas.name,
+        );
+        if (usesAtlas) {
           dependentLayouts.push(name);
         }
       } catch {
@@ -604,11 +609,33 @@ export function AtlasBuilder() {
             </div>
           </>
         ) : (
-          <div className="empty-state">
-            <p>Select or create an atlas to get started.</p>
+          <div className="welcome-panel">
+            <div className="welcome-icon">&#127912;</div>
+            <div className="welcome-title">Atlas Builder</div>
+            <p className="welcome-text">
+              An atlas is a reusable collection of input entries with images and bindings. Build one here, then use it across multiple layouts.
+            </p>
+            <div className="welcome-steps">
+              <div className="welcome-step">
+                <span className="welcome-step-num">1</span>
+                <span>Create a new atlas or browse community atlases</span>
+              </div>
+              <div className="welcome-step">
+                <span className="welcome-step-num">2</span>
+                <span>Add entries and assign input bindings (key, button, axis)</span>
+              </div>
+              <div className="welcome-step">
+                <span className="welcome-step-num">3</span>
+                <span>Import pressed and unpressed images for each entry</span>
+              </div>
+              <div className="welcome-step">
+                <span className="welcome-step-num">4</span>
+                <span>Use your atlas in the Layout Editor to build overlays</span>
+              </div>
+            </div>
             <button
               className="btn btn-primary"
-              style={{ marginTop: 12 }}
+              style={{ marginTop: 20 }}
               onClick={() => openCommunityBrowser()}
             >
               Browse Community Atlases
@@ -623,23 +650,26 @@ export function AtlasBuilder() {
             <div className="add-modal-title">Add Atlas</div>
             <div className="add-modal-section">
               <label className="add-modal-label">Create new</label>
-              <div className="add-modal-row">
-                <input
-                  type="text"
-                  placeholder="Atlas name..."
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && createNew()}
-                  autoFocus
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={createNew}
-                  disabled={!newName.trim()}
-                >
-                  Create
-                </button>
-              </div>
+              <input
+                type="text"
+                placeholder="Atlas name..."
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && createNew()}
+                autoFocus
+              />
+              {atlasNameExists && (
+                <span style={{ color: "#e74c3c", fontSize: 11 }}>
+                  An atlas with this name already exists.
+                </span>
+              )}
+              <button
+                className="btn btn-primary"
+                onClick={createNew}
+                disabled={!newName.trim() || atlasNameExists}
+              >
+                Create
+              </button>
             </div>
             <div className="add-modal-divider" />
             <div className="add-modal-section">
@@ -1074,6 +1104,60 @@ export function AtlasBuilder() {
           color: #667;
           padding: 40px;
           font-style: italic;
+        }
+        .welcome-panel {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          padding: 32px;
+          text-align: center;
+          color: #999;
+        }
+        .welcome-icon {
+          font-size: 48px;
+          margin-bottom: 8px;
+          opacity: 0.3;
+        }
+        .welcome-title {
+          font-size: 20px;
+          font-weight: 600;
+          color: #ccc;
+          margin-bottom: 8px;
+        }
+        .welcome-text {
+          font-size: 13px;
+          color: #777;
+          max-width: 380px;
+          line-height: 1.5;
+          margin-bottom: 20px;
+        }
+        .welcome-steps {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          text-align: left;
+        }
+        .welcome-step {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 13px;
+          color: #999;
+        }
+        .welcome-step-num {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(232, 115, 12, 0.15);
+          color: #e8730c;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
         }
         .actions-menu {
           position: relative;

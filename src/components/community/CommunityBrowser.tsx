@@ -14,6 +14,7 @@ import {
 } from "../../lib/communityCommands";
 import type { InstallProgress } from "../../lib/communityCommands";
 import { CommunityAtlasCard } from "./CommunityAtlasCard";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export function CommunityBrowser() {
   const [index, setIndex] = useState<CommunityIndex | null>(null);
@@ -144,7 +145,17 @@ export function CommunityBrowser() {
       <div className="community-header">
         <h1>Community Atlases</h1>
         <p className="community-subtitle">
-          Browse and install atlases shared by the community
+          Browse and install atlases shared by the community.{" "}
+          <a
+            href="#"
+            className="community-contribute-link"
+            onClick={(e) => {
+              e.preventDefault();
+              openUrl("https://github.com/made-by-gare/what-pressed-atlases");
+            }}
+          >
+            Want to share your own? Submit it on GitHub
+          </a>
         </p>
       </div>
 
@@ -257,6 +268,13 @@ export function CommunityBrowser() {
         .community-subtitle {
           color: #888;
           font-size: 14px;
+        }
+        .community-contribute-link {
+          color: #e8730c;
+          text-decoration: none;
+        }
+        .community-contribute-link:hover {
+          text-decoration: underline;
         }
         .community-search {
           display: flex;

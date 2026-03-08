@@ -167,6 +167,26 @@ fn delete_layout(state: tauri::State<'_, AppState>, name: String) -> Result<(), 
 }
 
 #[tauri::command]
+fn rename_layout(
+    state: tauri::State<'_, AppState>,
+    old_name: String,
+    new_name: String,
+) -> Result<(), String> {
+    layout::rename_layout(&state.data_dir, &old_name, &new_name)?;
+    bump_layout_version(&state);
+    Ok(())
+}
+
+#[tauri::command]
+fn import_layout_image(
+    state: tauri::State<'_, AppState>,
+    layout_name: String,
+    source_path: String,
+) -> Result<String, String> {
+    layout::import_layout_image(&state.data_dir, &layout_name, &source_path)
+}
+
+#[tauri::command]
 fn export_layout_zip(
     state: tauri::State<'_, AppState>,
     name: String,
@@ -321,6 +341,20 @@ fn load_community_atlas(
     community::load_community_atlas(&state.data_dir, &name)
 }
 
+// ── Fonts ──
+
+#[tauri::command]
+fn list_system_fonts() -> Vec<String> {
+    use font_kit::source::SystemSource;
+    let source = SystemSource::new();
+    let mut families = source
+        .all_families()
+        .unwrap_or_default();
+    families.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    families.dedup();
+    families
+}
+
 // ── App ──
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -353,6 +387,16 @@ pub fn run() {
                 layout_version_rx,
             });
 
+            // Set window icon using pre-decoded RGBA (avoids pulling in the `image` crate)
+            if let Some(window) = app.get_webview_window("main") {
+                let rgba = include_bytes!(concat!(env!("OUT_DIR"), "/icon_rgba.bin"));
+                let dims = include_bytes!(concat!(env!("OUT_DIR"), "/icon_dims.bin"));
+                let w = u32::from_le_bytes([dims[0], dims[1], dims[2], dims[3]]);
+                let h = u32::from_le_bytes([dims[4], dims[5], dims[6], dims[7]]);
+                let icon = tauri::image::Image::new(rgba, w, h);
+                let _ = window.set_icon(icon);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -370,6 +414,8 @@ pub fn run() {
             load_layout,
             save_layout,
             delete_layout,
+            rename_layout,
+            import_layout_image,
             export_layout_zip,
             import_layout_zip,
             start_server,
@@ -385,6 +431,7 @@ pub fn run() {
             open_community_browser,
             list_community_atlases,
             load_community_atlas,
+            list_system_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

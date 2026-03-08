@@ -25,14 +25,19 @@ export function useLayout() {
     refresh();
   }, [refresh]);
 
+  const [loadError, setLoadError] = useState<{ name: string; error: string } | null>(null);
+
   const load = useCallback(async (name: string): Promise<Layout | null> => {
     setLoading(true);
+    setLoadError(null);
     try {
       const layout = await loadLayout(name);
       setCurrentLayout(layout);
       return layout;
     } catch (err) {
       console.error("Failed to load layout:", err);
+      setCurrentLayout(null);
+      setLoadError({ name, error: String(err) });
       return null;
     } finally {
       setLoading(false);
@@ -69,7 +74,8 @@ export function useLayout() {
 
   const clear = useCallback(() => {
     setCurrentLayout(null);
+    setLoadError(null);
   }, []);
 
-  return { layoutNames, currentLayout, loading, load, save, remove, refresh, clear };
+  return { layoutNames, currentLayout, loading, load, save, remove, refresh, clear, loadError };
 }

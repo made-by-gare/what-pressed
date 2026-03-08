@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useInputState } from "../../hooks/useInputState";
-import { useAtlas } from "../../hooks/useAtlas";
 import { useLayout } from "../../hooks/useLayout";
 import { DisplayRenderer } from "./DisplayRenderer";
 import {
@@ -8,14 +7,20 @@ import {
   stopServer,
   getServerPort,
   setActiveLayout,
+  loadAtlas,
 } from "../../lib/commands";
+import type { Atlas } from "../../types/atlas";
 import { inputIdToString } from "../../types/input";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-export function DisplayView() {
+interface DisplayViewProps {
+  onNavigate?: (tab: "atlas" | "layout" | "display") => void;
+}
+
+export function DisplayView({ onNavigate }: DisplayViewProps) {
   const inputState = useInputState();
-  const { currentAtlas, load: loadAtlas } = useAtlas();
-  const { layoutNames, currentLayout, load: loadLayout } = useLayout();
+  const { layoutNames, currentLayout, load: loadLayout, loadError } = useLayout();
+  const [atlases, setAtlases] = useState<Map<string, Atlas>>(new Map());
   const [serverPort, setServerPort] = useState<number | null>(null);
   const [portInput, setPortInput] = useState(9120);
 
@@ -39,11 +44,14 @@ export function DisplayView() {
       .catch(() => {});
   }, []);
 
-  // Restore last used layout when layout list is available
+  // Restore last used layout, or auto-select first
   useEffect(() => {
+    if (layoutNames.length === 0) return;
     const last = localStorage.getItem("wp-last-layout");
     if (last && layoutNames.includes(last)) {
       loadLayout(last);
+    } else {
+      loadLayout(layoutNames[0]);
     }
   }, [layoutNames]);
 
@@ -52,14 +60,30 @@ export function DisplayView() {
     await loadLayout(name);
   };
 
-  // When layout loads, also load its atlas and persist selection
+  // When layout loads, resolve all referenced atlases
   useEffect(() => {
-    if (currentLayout && currentLayout.atlas_name) {
-      loadAtlas(currentLayout.atlas_name);
-      setActiveLayout(currentLayout.name).catch(() => {});
-      localStorage.setItem("wp-last-layout", currentLayout.name);
+    if (!currentLayout) return;
+    setActiveLayout(currentLayout.name).catch(() => {});
+    localStorage.setItem("wp-last-layout", currentLayout.name);
+
+    // Collect unique atlas names from atlas-type entries
+    const atlasNames = new Set<string>();
+    for (const entry of currentLayout.entries) {
+      if (entry.source.type === "atlas") {
+        atlasNames.add(entry.source.atlas_name);
+      }
     }
-  }, [currentLayout?.name]);
+
+    // Load all needed atlases
+    const newAtlases = new Map<string, Atlas>();
+    Promise.all(
+      [...atlasNames].map((name) =>
+        loadAtlas(name)
+          .then((atlas) => newAtlases.set(name, atlas))
+          .catch(() => {}),
+      ),
+    ).then(() => setAtlases(newAtlases));
+  }, [currentLayout?.name, currentLayout?.version]);
 
   const handleStartServer = async () => {
     await startServer(portInput);
@@ -77,32 +101,55 @@ export function DisplayView() {
     inputState.pressed.map((id) => inputIdToString(id)),
   );
 
+  const hasLayouts = layoutNames.length > 0;
+
   return (
-    <div className="display-view">
+    <div className={`display-view${hasLayouts ? "" : " display-view-welcome"}`}>
+      {!hasLayouts ? (
+        <div className="welcome-panel">
+          <div className="welcome-icon">&#127918;</div>
+          <div className="welcome-title">Welcome to What Pressed</div>
+          <p className="welcome-text">
+            Show your keyboard, mouse, and gamepad inputs as a live overlay — perfect for streams, tutorials, and videos.
+          </p>
+          <div className="welcome-steps">
+            <div className="welcome-step">
+              <span className="welcome-step-num">1</span>
+              <span>Create a <strong>Layout</strong> — arrange shapes, images, and inputs on a canvas</span>
+            </div>
+            <div className="welcome-step">
+              <span className="welcome-step-num">2</span>
+              <span>Preview your layout here and start the <strong>OBS server</strong> to use it as a browser source</span>
+            </div>
+          </div>
+          <p className="welcome-hint">
+            Want a head start? Browse <strong>Atlases</strong> for pre-configured input sets with images you can drop right into a layout.
+          </p>
+          <div className="welcome-actions">
+            <button className="btn btn-primary" onClick={() => onNavigate?.("layout")}>
+              Create Your First Layout
+            </button>
+            <button className="btn" onClick={() => onNavigate?.("atlas")}>
+              Browse Atlases
+            </button>
+          </div>
+        </div>
+      ) : (<>
       <div className="display-controls panel">
         <div className="panel-header">Display Controls</div>
 
         <div className="control-row">
           <label>Layout:</label>
-          {layoutNames.length > 0 ? (
-            <select
-              value={currentLayout?.name || ""}
-              onChange={(e) =>
-                e.target.value && handleSelectLayout(e.target.value)
-              }
-            >
-              <option value="">Select layout...</option>
-              {layoutNames.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="no-layouts-hint">
-              No layouts yet — create one in the Layout Editor tab
-            </span>
-          )}
+          <select
+            value={currentLayout?.name || ""}
+            onChange={(e) => handleSelectLayout(e.target.value)}
+          >
+            {layoutNames.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="control-section">
@@ -166,18 +213,25 @@ export function DisplayView() {
       </div>
 
       <div className="display-canvas-area">
-        {currentLayout && currentAtlas ? (
+        {currentLayout ? (
           <DisplayRenderer
             layout={currentLayout}
-            atlas={currentAtlas}
+            atlases={atlases}
             pressedSet={pressedSet}
           />
+        ) : loadError ? (
+          <div className="panel empty-state">
+            <span style={{ color: "#e74c3c" }}>
+              Failed to load "{loadError.name}" — it may use an incompatible format.
+            </span>
+          </div>
         ) : (
           <div className="panel empty-state">
             Select a layout to preview the display.
           </div>
         )}
       </div>
+      </>)}
 
       <style>{`
         .display-view {
@@ -251,6 +305,83 @@ export function DisplayView() {
         .display-canvas-area {
           overflow: hidden;
           border-radius: 8px;
+        }
+        .display-view-welcome {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .display-view-welcome .welcome-panel {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          padding: 32px;
+          text-align: center;
+          color: #999;
+        }
+        .display-view-welcome .welcome-icon {
+          font-size: 48px;
+          margin-bottom: 8px;
+          opacity: 0.3;
+        }
+        .display-view-welcome .welcome-title {
+          font-size: 20px;
+          font-weight: 600;
+          color: #ccc;
+          margin-bottom: 8px;
+        }
+        .display-view-welcome .welcome-text {
+          font-size: 13px;
+          color: #777;
+          max-width: 380px;
+          line-height: 1.5;
+          margin-bottom: 20px;
+        }
+        .display-view-welcome .welcome-steps {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          text-align: left;
+        }
+        .display-view-welcome .welcome-step {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 13px;
+          color: #999;
+        }
+        .display-view-welcome .welcome-step strong {
+          color: #ccc;
+        }
+        .display-view-welcome .welcome-step-num {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(232, 115, 12, 0.15);
+          color: #e8730c;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .display-view-welcome .welcome-hint {
+          font-size: 12px;
+          color: #666;
+          max-width: 380px;
+          line-height: 1.5;
+          margin-top: 16px;
+        }
+        .display-view-welcome .welcome-hint strong {
+          color: #999;
+        }
+        .welcome-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 24px;
         }
       `}</style>
     </div>

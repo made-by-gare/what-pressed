@@ -39,7 +39,6 @@ export function AtlasEntryEditor({
   onUpdateSource,
 }: Props) {
   const [listenPhase, setListenPhase] = useState<ListenPhase>("idle");
-  const [allowMouse, setAllowMouse] = useState(false);
   const [selectingFor, setSelectingFor] = useState<
     "pressed_image" | "unpressed_image" | null
   >(null);
@@ -58,14 +57,6 @@ export function AtlasEntryEditor({
   };
 
   useEffect(() => {
-    if (listenPhase === "waitForInput") {
-      setListenPhase("idle");
-      const id = setTimeout(() => setListenPhase("waitForRelease"), 300);
-      return () => clearTimeout(id);
-    }
-  }, [allowMouse]);
-
-  useEffect(() => {
     if (listenPhase === "idle") return;
 
     if (listenPhase === "waitForRelease") {
@@ -76,11 +67,10 @@ export function AtlasEntryEditor({
     }
 
     if (!currentInput) return;
-    if (!allowMouse && currentInput.type === "MouseButton") return;
 
     onUpdateRef.current({ ...entryRef.current, input_id: currentInput });
     setListenPhase("idle");
-  }, [listenPhase, currentInput, allowMouse]);
+  }, [listenPhase, currentInput]);
 
   const handleRectSelect = (ref_: ImageRef) => {
     if (selectingFor) {
@@ -124,14 +114,6 @@ export function AtlasEntryEditor({
               <button className="btn btn-sm" onClick={cancelListening}>
                 Cancel
               </button>
-              <label className="mouse-toggle">
-                <input
-                  type="checkbox"
-                  checked={allowMouse}
-                  onChange={(e) => setAllowMouse(e.target.checked)}
-                />
-                Mouse
-              </label>
             </>
           ) : (
             <button className="btn btn-sm" onClick={startListening}>

@@ -74,6 +74,17 @@ export function deleteLayout(name: string): Promise<void> {
   return invoke("delete_layout", { name });
 }
 
+export function renameLayout(oldName: string, newName: string): Promise<void> {
+  return invoke("rename_layout", { oldName, newName });
+}
+
+export function importLayoutImage(
+  layoutName: string,
+  sourcePath: string,
+): Promise<string> {
+  return invoke("import_layout_image", { layoutName, sourcePath });
+}
+
 export function exportLayoutZip(name: string, destPath: string): Promise<void> {
   return invoke("export_layout_zip", { name, destPath });
 }
@@ -102,4 +113,9 @@ export function setActiveLayout(name: string): Promise<void> {
 
 export function getActiveLayout(): Promise<string | null> {
   return invoke("get_active_layout");
+}
+
+// Fonts
+export function listSystemFonts(): Promise<string[]> {
+  return invoke("list_system_fonts");
 }

@@ -15,8 +15,8 @@
   }
 
   let layout = null;
-  let atlas = null;
-  let elements = new Map(); // entry.id -> { el, imgPressed, imgUnpressed }
+  let atlases = {}; // atlas_name -> atlas data
+  let elements = new Map(); // entry.id -> { el, inputId, imgPressed, imgUnpressed, shapeUnpressed, shapePressed }
 
   async function fetchLayout() {
     try {
@@ -39,7 +39,22 @@
   }
 
   function inputIdToString(id) {
+    if (!id) return "";
     return `${id.type}:${id.value}`;
+  }
+
+  function findShapeStyle(styleId) {
+    if (styleId && layout && layout.shape_styles) {
+      return layout.shape_styles.find((s) => s.id === styleId) || null;
+    }
+    return null;
+  }
+
+  function findTextStyle(styleId) {
+    if (styleId && layout && layout.text_styles) {
+      return layout.text_styles.find((s) => s.id === styleId) || null;
+    }
+    return null;
   }
 
   function isImageRefEmpty(ref) {
@@ -48,18 +63,20 @@
     return false;
   }
 
-  function getImageRefFilename(ref) {
-    if (typeof ref === "string") return ref;
-    return ref.source;
+  function getImageUrl(atlasName, layoutName, filename) {
+    if (!filename) return "";
+    if (atlasName) {
+      return `${baseUrl}/api/atlas/${atlasName}/images/${filename}`;
+    }
+    return `${baseUrl}/api/layout/${layoutName}/images/${filename}`;
   }
 
-  function createImageElement(imageRef, displayW, displayH) {
+  function createImageElement(imageRef, atlasName, layoutName, displayW, displayH) {
     if (isImageRefEmpty(imageRef)) return null;
 
     if (typeof imageRef === "string") {
-      // Direct file reference
       const img = new Image();
-      img.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${imageRef}`;
+      img.src = getImageUrl(atlasName, layoutName, imageRef);
       return img;
     }
 
@@ -76,15 +93,78 @@
         0, 0, displayW, displayH,
       );
     };
-    img.src = `${baseUrl}/api/atlas/${layout.atlas_name}/images/${imageRef.source}`;
+    img.src = getImageUrl(atlasName, layoutName, imageRef.source);
     return canvas;
+  }
+
+  function createShapeElement(shape, opts) {
+    const el = document.createElement("div");
+    el.style.position = "absolute";
+    el.style.inset = "0";
+    el.style.backgroundColor = opts.fill !== false ? opts.color : "transparent";
+    if (shape === "circle") el.style.borderRadius = "50%";
+    const sw = opts.strokeWidth ?? 0;
+    if (sw > 0) {
+      el.style.border = `${sw}px solid ${opts.strokeColor ?? "#ffffff"}`;
+      el.style.boxSizing = "border-box";
+    }
+    return el;
+  }
+
+  /** Resolve entry source to its display properties. */
+  function resolveEntry(entry) {
+    const src = entry.source;
+    if (src.type === "atlas") {
+      const atlas = atlases[src.atlas_name];
+      if (!atlas) return null;
+      const ae = atlas.entries.find((e) => e.id === src.entry_id);
+      if (!ae) return null;
+      return {
+        inputId: ae.input_id,
+        width: ae.width,
+        height: ae.height,
+        unpressedImage: ae.unpressed_image,
+        pressedImage: ae.pressed_image,
+        imageSource: src.atlas_name,
+        isShape: false,
+      };
+    }
+    if (src.type === "inline") {
+      return {
+        inputId: src.input_id || null,
+        width: src.width,
+        height: src.height,
+        unpressedImage: src.unpressed_image,
+        pressedImage: src.pressed_image,
+        imageSource: null,
+        isShape: false,
+      };
+    }
+    // shape — resolve unpressed and pressed styles separately
+    const unpressedStyle = findShapeStyle(src.shape_style_id) || src;
+    const pressedStyle = findShapeStyle(src.pressed_shape_style_id) || unpressedStyle;
+    return {
+      inputId: src.input_id || null,
+      width: src.width,
+      height: src.height,
+      shape: src.shape,
+      color: unpressedStyle.color,
+      fill: unpressedStyle.fill,
+      strokeColor: unpressedStyle.stroke_color,
+      strokeWidth: unpressedStyle.stroke_width,
+      pressedColor: pressedStyle.color,
+      pressedFill: pressedStyle.fill,
+      pressedStrokeColor: pressedStyle.stroke_color,
+      pressedStrokeWidth: pressedStyle.stroke_width,
+      isShape: true,
+    };
   }
 
   function buildDisplay() {
     container.innerHTML = "";
     elements.clear();
 
-    if (!layout || !atlas) return;
+    if (!layout) return;
 
     container.style.width = layout.canvas_width + "px";
     container.style.height = layout.canvas_height + "px";
@@ -92,17 +172,14 @@
     const sorted = [...layout.entries].sort((a, b) => a.z_index - b.z_index);
 
     for (const entry of sorted) {
-      const atlasEntry = atlas.entries.find(
-        (ae) => ae.id === entry.atlas_entry_id,
-      );
-      if (!atlasEntry) continue;
+      const resolved = resolveEntry(entry);
+      if (!resolved) continue;
+
+      const w = resolved.width * entry.scale;
+      const h = resolved.height * entry.scale;
 
       const el = document.createElement("div");
       el.className = "display-entry";
-
-      const w = atlasEntry.width * entry.scale;
-      const h = atlasEntry.height * entry.scale;
-
       el.style.left = entry.x - w / 2 + "px";
       el.style.top = entry.y - h / 2 + "px";
       el.style.width = w + "px";
@@ -110,19 +187,64 @@
       el.style.transform = `rotate(${entry.rotation}deg)`;
       el.style.zIndex = entry.z_index;
 
-      const unpressedEl = createImageElement(atlasEntry.unpressed_image, w, h);
-      const pressedEl = createImageElement(atlasEntry.pressed_image, w, h);
-      if (pressedEl) pressedEl.style.display = "none";
+      let imgUnpressed = null;
+      let imgPressed = null;
+      let shapeUnpressed = null;
+      let shapePressed = null;
 
-      if (unpressedEl) el.appendChild(unpressedEl);
-      if (pressedEl) el.appendChild(pressedEl);
+      if (resolved.isShape) {
+        shapeUnpressed = createShapeElement(resolved.shape, {
+          color: resolved.color, fill: resolved.fill,
+          strokeColor: resolved.strokeColor, strokeWidth: resolved.strokeWidth,
+        });
+        shapePressed = createShapeElement(resolved.shape, {
+          color: resolved.pressedColor, fill: resolved.pressedFill,
+          strokeColor: resolved.pressedStrokeColor, strokeWidth: resolved.pressedStrokeWidth,
+        });
+        shapePressed.style.display = "none";
+        el.appendChild(shapeUnpressed);
+        el.appendChild(shapePressed);
+      } else {
+        imgUnpressed = createImageElement(
+          resolved.unpressedImage, resolved.imageSource, layout.name, w, h,
+        );
+        imgPressed = createImageElement(
+          resolved.pressedImage, resolved.imageSource, layout.name, w, h,
+        );
+        if (imgPressed) imgPressed.style.display = "none";
+        if (imgUnpressed) el.appendChild(imgUnpressed);
+        if (imgPressed) el.appendChild(imgPressed);
+      }
+
+      // Text label overlay
+      let labelUnpressedStyle = null;
+      let labelPressedStyle = null;
+      if (entry.label) {
+        labelUnpressedStyle = findTextStyle(entry.label.text_style_id) || entry.label;
+        labelPressedStyle = findTextStyle(entry.label.pressed_text_style_id) || labelUnpressedStyle;
+        const labelEl = document.createElement("div");
+        labelEl.className = "label-overlay";
+        labelEl.textContent = entry.label.text;
+        labelEl.style.fontFamily = labelUnpressedStyle.font_family || "sans-serif";
+        labelEl.style.fontSize = (labelUnpressedStyle.font_size || 14) + "px";
+        labelEl.style.color = labelUnpressedStyle.color;
+        if (labelUnpressedStyle.bold) labelEl.style.fontWeight = "bold";
+        if (labelUnpressedStyle.italic) labelEl.style.fontStyle = "italic";
+        el.appendChild(labelEl);
+      }
+
       container.appendChild(el);
 
       elements.set(entry.id, {
         el,
-        atlasEntry,
-        imgPressed: pressedEl,
-        imgUnpressed: unpressedEl,
+        inputId: resolved.inputId,
+        imgPressed,
+        imgUnpressed,
+        shapePressed,
+        shapeUnpressed,
+        labelEl: entry.label ? el.querySelector(".label-overlay") : null,
+        labelUnpressedStyle,
+        labelPressedStyle,
       });
     }
   }
@@ -133,11 +255,20 @@
     );
 
     for (const [, data] of elements) {
-      const isPressed = pressedSet.has(
-        inputIdToString(data.atlasEntry.input_id),
-      );
+      if (!data.inputId) continue; // background element, never toggles
+      const isPressed = pressedSet.has(inputIdToString(data.inputId));
       if (data.imgUnpressed) data.imgUnpressed.style.display = isPressed ? "none" : "";
       if (data.imgPressed) data.imgPressed.style.display = isPressed ? "" : "none";
+      if (data.shapeUnpressed) data.shapeUnpressed.style.display = isPressed ? "none" : "";
+      if (data.shapePressed) data.shapePressed.style.display = isPressed ? "" : "none";
+      if (data.labelEl && data.labelUnpressedStyle) {
+        const ts = isPressed ? data.labelPressedStyle : data.labelUnpressedStyle;
+        data.labelEl.style.color = ts.color;
+        data.labelEl.style.fontWeight = ts.bold ? "bold" : "normal";
+        data.labelEl.style.fontStyle = ts.italic ? "italic" : "normal";
+        data.labelEl.style.fontFamily = ts.font_family || "sans-serif";
+        data.labelEl.style.fontSize = (ts.font_size || 14) + "px";
+      }
     }
   }
 
@@ -174,11 +305,29 @@
     };
   }
 
+  /** Collect unique atlas names from layout entries and fetch them. */
+  async function loadAtlases() {
+    if (!layout) return;
+    const names = new Set();
+    for (const entry of layout.entries) {
+      if (entry.source.type === "atlas") {
+        names.add(entry.source.atlas_name);
+      }
+    }
+    atlases = {};
+    await Promise.all(
+      [...names].map(async (name) => {
+        const atlas = await fetchAtlas(name);
+        if (atlas) atlases[name] = atlas;
+      }),
+    );
+  }
+
   async function reload() {
     const newLayout = await fetchLayout();
     if (!newLayout) return;
     layout = newLayout;
-    atlas = await fetchAtlas(layout.atlas_name);
+    await loadAtlases();
     buildDisplay();
   }
 
@@ -191,13 +340,7 @@
       return;
     }
 
-    atlas = await fetchAtlas(layout.atlas_name);
-    if (!atlas) {
-      console.log("Failed to fetch atlas, retrying in 2s...");
-      setStatus("waiting", "Waiting for atlas data...");
-      setTimeout(init, 2000);
-      return;
-    }
+    await loadAtlases();
 
     setStatus("", "");
     buildDisplay();

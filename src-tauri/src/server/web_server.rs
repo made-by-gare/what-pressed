@@ -37,6 +37,10 @@ pub fn create_router(state: ServerState) -> Router {
             "/api/atlas/{name}/images/{filename}",
             get(atlas_image_handler),
         )
+        .route(
+            "/api/layout/{name}/images/{filename}",
+            get(layout_image_handler),
+        )
         .route("/{*path}", get(static_handler))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -165,6 +169,35 @@ async fn atlas_image_handler(
     } else {
         community_path
     };
+    match tokio::fs::read(&path).await {
+        Ok(data) => {
+            let mime = mime_guess::from_path(&filename)
+                .first_or_octet_stream()
+                .to_string();
+            (
+                StatusCode::OK,
+                [
+                    (header::CONTENT_TYPE, mime),
+                    (header::CACHE_CONTROL, "public, max-age=3600".to_string()),
+                ],
+                data,
+            )
+                .into_response()
+        }
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+async fn layout_image_handler(
+    State(state): State<ServerState>,
+    Path((name, filename)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let path = state
+        .data_dir
+        .join("layouts")
+        .join(&name)
+        .join("images")
+        .join(&filename);
     match tokio::fs::read(&path).await {
         Ok(data) => {
             let mime = mime_guess::from_path(&filename)
