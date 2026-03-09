@@ -35,6 +35,7 @@ export interface LabelConfig {
   bold?: boolean;
   pressed_bold?: boolean;
   italic?: boolean;
+  text_direction?: "horizontal" | "vertical";
 }
 
 export interface EntryOrigin {

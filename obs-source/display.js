@@ -230,6 +230,10 @@
         labelEl.style.color = labelUnpressedStyle.color;
         if (labelUnpressedStyle.bold) labelEl.style.fontWeight = "bold";
         if (labelUnpressedStyle.italic) labelEl.style.fontStyle = "italic";
+        if (entry.label.text_direction === "vertical") {
+          labelEl.style.writingMode = "vertical-rl";
+          labelEl.style.textOrientation = "upright";
+        }
         el.appendChild(labelEl);
       }
 

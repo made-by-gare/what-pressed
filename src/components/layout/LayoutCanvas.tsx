@@ -377,6 +377,7 @@ export function LayoutCanvas({
                     color: tv.color,
                     fontWeight: tv.bold ? "bold" : "normal",
                     fontStyle: tv.italic ? "italic" : "normal",
+                    ...(entry.label.text_direction === "vertical" ? { writingMode: "vertical-rl", textOrientation: "upright" } as React.CSSProperties : {}),
                   }}>
                     {entry.label.text}
                   </div>

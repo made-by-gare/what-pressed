@@ -102,8 +102,12 @@ pub struct LabelConfig {
     pub pressed_bold: Option<bool>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub italic: bool,
+    #[serde(default = "default_text_direction", skip_serializing_if = "is_default_text_direction")]
+    pub text_direction: String,
 }
 
+fn default_text_direction() -> String { "horizontal".into() }
+fn is_default_text_direction(s: &String) -> bool { s == "horizontal" }
 fn default_font_family() -> String { "sans-serif".into() }
 fn default_font_size() -> f64 { 14.0 }
 fn default_align() -> String { "center".into() }

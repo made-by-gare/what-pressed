@@ -335,6 +335,16 @@ export function LayoutEntryProperties({
                 onChange={(e) => updateLabel({ text: e.target.value })}
               />
             </div>
+            <div className="prop-row">
+              <label>Direction:</label>
+              <select
+                value={entry.label.text_direction ?? "horizontal"}
+                onChange={(e) => updateLabel({ text_direction: e.target.value as "horizontal" | "vertical" })}
+              >
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
+            </div>
             {!decoration && <div className="prop-subsection-header">Unpressed</div>}
             <div className="prop-row">
               <label>Style:</label>

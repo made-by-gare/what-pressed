@@ -91,6 +91,7 @@ function LabelOverlay({ config, textStyles, isPressed }: { config: LabelConfig; 
         padding: 4,
         textAlign: (config.align || "center") as React.CSSProperties["textAlign"],
         overflow: "hidden",
+        ...(config.text_direction === "vertical" ? { writingMode: "vertical-rl", textOrientation: "upright" } : {}),
       }}
     >
       {config.text}

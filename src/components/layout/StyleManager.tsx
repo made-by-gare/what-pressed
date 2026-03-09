@@ -419,7 +419,7 @@ export function StyleManager({ layout, onSave, onClose }: Props) {
                               fontStyle: style.italic ? "italic" : "normal",
                             }}
                           >
-                            Sample Text 123
+                            The quick brown fox jumps over the lazy dog 0123456789
                           </span>
                         </div>
                       </div>
